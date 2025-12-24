@@ -6,7 +6,8 @@
  * - Binary reading/writing utilities for TSI format (Big Endian)
  * - TSI file parsing and serialization
  * - Domain models for Mappings, Devices, Commands, Conditions
- * - Command metadata system for all ~300 Traktor commands
+ * - Command metadata system for all ~500 Traktor commands
+ * - Condition metadata system for all ~80 Traktor conditions
  *
  * TSI Format Overview:
  * - TSI files are XML with Base64-encoded binary data in CDATA sections
@@ -20,6 +21,12 @@ export { BinaryWriter } from "./binary/BinaryWriter.js";
 
 // Commands
 export * from "./commands/index.js";
+
+// Conditions
+export * from "./conditions/index.js";
+
+// FX Settings
+export * from "./fx/index.js";
 
 // Enums
 export * from "./enums/index.js";

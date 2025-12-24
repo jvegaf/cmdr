@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 4 Complete - Commands System with full metadata for ~500 Traktor commands
+> **Status:** Phase 6 Complete - FX Settings system with full effect management
 
 ## Project Structure
 
@@ -33,7 +33,7 @@ pnpm --filter @cmdr/core test:run
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **140 tests passing.**
+The core TSI parsing library. **209 tests passing.**
 
 **Completed:**
 - Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
@@ -56,12 +56,23 @@ The core TSI parsing library. **140 tests passing.**
   - `Categories` enum (~40 hierarchical categories)
   - `TargetType`, `CommandInType`, `CommandOutType`, `FloatRangeType` enums
   - Helper functions: `getCommandDescription()`, `getCommandsByCategory()`, etc.
-- 45 command tests + 95 parser tests = 140 total
+- **Conditions System** with:
+  - `KnownConditions` enum (85 conditions: 21 core + 64 slot cell states)
+  - `CONDITION_METADATA` lookup table
+  - `ConditionCategory` enum (Modifier, Deck, FX, Remix, Slot)
+  - 14 value types (OnOff, ModifierValue, SlotState, etc.)
+  - Helper functions: `getConditionDescription()`, `getConditionsByCategory()`, etc.
+- **FX Settings System** with:
+  - `Effect` enum (~40 Traktor effects)
+  - `FxSnapshot` interfaces (buttons + knobs)
+  - `loadFxSettings()` / `saveFxSettings()` for XML
+  - Helper functions for effect management
+- 209 total tests (40 binary, 45 commands, 38 conditions, 31 FX, 55 integration/roundtrip)
 
 **Pending:**
-- Conditions system (Phase 5)
-- MidiDefinition parsing
-- High-level Command/Condition objects
+- Controls system (Phase 7)
+- High-level models (Phase 8)
+- MIDI integration (Phase 9+)
 
 ### @cmdr/midi 🚧
 
@@ -194,8 +205,9 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | 2. TSI Binary Parser | ✅ Complete | All frame parsers + serializers |
 | 3. XML Layer | ✅ Complete | Full parse/build with round-trip support |
 | 4. Commands | ✅ Complete | Command metadata system (~500 commands) |
-| 5. Conditions | ⏳ Pending | Condition system |
-| 6-21. UI & More | ⏳ Pending | React UI, MIDI, packaging |
+| 5. Conditions | ✅ Complete | Condition metadata system (85 conditions) |
+| 6. FX Settings | ✅ Complete | Effect management (~40 effects) |
+| 7-21. Controls, UI & More | ⏳ Pending | Controls, React UI, MIDI, packaging |
 
 ## License
 
