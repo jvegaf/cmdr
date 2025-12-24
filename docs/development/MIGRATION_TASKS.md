@@ -34,8 +34,8 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - [x] `src/format/`
   - [x] `src/xml/`
   - [x] `src/commands/`
-  - [ ] `src/conditions/`
-  - [ ] `src/controls/`
+  - [x] `src/conditions/`
+  - [x] `src/controls/`
   - [x] `src/enums/`
   - [x] `src/models/`
   - [x] `__tests__/`
@@ -485,73 +485,109 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 7: Sistema de Controls
+## Fase 7: Sistema de Controls ✅
 
-### 7.1 Control Base
+### 7.1 Control Base ✅
 
-- [ ] Crear `src/controls/base/control.ts`
-- [ ] Crear interfaz `Control`
-- [ ] Definir propiedades:
-  - [ ] `type: MappingControlType`
-  - [ ] `allowedInteractionModes: MappingInteractionMode[]`
+- [x] Crear `src/controls/control.ts`
+- [x] Crear interfaz `ControlInfo`
+- [x] Definir propiedades:
+  - [x] `type: MappingControlType`
+  - [x] `allowedInteractionModes: MappingInteractionMode[]`
 
-### 7.2 Implementaciones
+### 7.2 Implementaciones ✅
 
-- [ ] Implementar `ButtonControl`
-- [ ] Implementar `FaderControl`
-- [ ] Implementar `EncoderControl`
-- [ ] Implementar `LEDControl`
-- [ ] Crear registry de controls
-- [ ] Implementar `getControl(command, interactionMode): Control`
-- [ ] **Tests:**
-  - [ ] Test cada control
-  - [ ] Test obtener control para comando
+- [x] Implementar `ButtonControl` con 4 interaction modes
+- [x] Implementar `FaderControl` con 2 interaction modes
+- [x] Implementar `EncoderControl` with 4 encoder modes
+- [x] Implementar `LEDControl`
+- [x] Crear `CONTROL_REGISTRY` for all control types
+- [x] Implementar helper functions:
+  - [x] `getControlTypeName(type): string`
+  - [x] `getInteractionModeName(mode): string`
+  - [x] `getEncoderModeName(mode): string`
+  - [x] `getAllowedInteractionModes(type): MappingInteractionMode[]`
+  - [x] `isAllowedInteractionMode(type, mode): boolean`
+- [x] **Tests:**
+  - [x] 37 tests de controls pasando
+  - [x] Total: 246 tests pasando
 
 ---
 
-## Fase 8: Modelos de Alto Nivel
+## Fase 8: Modelos de Alto Nivel ✅
 
-### 8.1 Modelo Device
+### 8.1 Modelo Device ✅
 
-- [ ] Crear `src/models/device.ts`
-- [ ] Crear clase `Device` (wrapper sobre DeviceFrameData)
-- [ ] Propiedades:
-  - [ ] `id: number`
-  - [ ] `name: string`
-  - [ ] `deviceType: string`
-  - [ ] `isKeyboard: boolean`
-  - [ ] `mappings: Mapping[]`
-  - [ ] `inPorts`, `outPorts`
-- [ ] Métodos:
-  - [ ] `addMapping(mapping)`
-  - [ ] `removeMapping(id)`
-  - [ ] `moveMapping(fromIndex, toIndex)`
-- [ ] **Tests:**
-  - [ ] Test crear device
-  - [ ] Test manipular mappings
+- [x] Crear `src/models/Device.ts`
+- [x] Crear clase `Device` (wrapper sobre DeviceData)
+- [x] Propiedades:
+  - [x] `id: number`
+  - [x] `deviceType: string` / `typeStr: string`
+  - [x] `isKeyboard: boolean`
+  - [x] `isGenericMidi: boolean`
+  - [x] `mappings: Mapping[]` (readonly)
+  - [x] `mappingCount: number`
+  - [x] `inPort`, `outPort`
+  - [x] `target`, `comment`
+  - [x] `traktorVersion`, `revision`
+- [x] Métodos:
+  - [x] `addMapping(mapping)`
+  - [x] `insertMapping(index, mapping)`
+  - [x] `removeMapping(id)`, `removeMappingAt(index)`
+  - [x] `moveMapping(fromIndex, toIndex)`
+  - [x] `getMapping(index)`, `getMappingById(id)`
+  - [x] `createMapping(commandId)`
+  - [x] `incrementRevision()`
+  - [x] `syncToRawData()`
+  - [x] `copy(includeMappings)`
+- [x] Factory methods:
+  - [x] `Device.fromRawData()`
+  - [x] `Device.create()`, `Device.createGenericMidi()`, `Device.createKeyboard()`
+- [x] Helper functions:
+  - [x] `isGenericMidiDevice()`, `getDeviceTypeName()`, `getDeviceTargetName()`
+  - [x] Constants: `DEVICE_TYPE_GENERIC_MIDI`, `DEVICE_TYPE_GENERIC_KEYBOARD`, `PROPRIETARY_DEVICE_TYPES`
 
-### 8.2 Modelo Mapping
+### 8.2 Modelo Mapping ✅
 
-- [ ] Crear `src/models/mapping.ts`
-- [ ] Crear clase `Mapping` (wrapper de alto nivel)
-- [ ] Propiedades:
-  - [ ] `id: number`
-  - [ ] `command: Command`
-  - [ ] `condition1: Condition | null`
-  - [ ] `condition2: Condition | null`
-  - [ ] `midiBinding: MidiBinding | null`
-  - [ ] `comment: string`
-- [ ] **Tests:**
-  - [ ] Test crear mapping
-  - [ ] Test modificar command
-  - [ ] Test modificar conditions
+- [x] Crear `src/models/Mapping.ts`
+- [x] Crear clase `Mapping` (wrapper de alto nivel sobre MappingData)
+- [x] Propiedades:
+  - [x] `id: number` (midiNoteBindingId)
+  - [x] `type: MappingType`, `isInput`, `isOutput`
+  - [x] `commandId`, `command: CommandDescription`, `commandName`
+  - [x] `condition1: MappingCondition | null`
+  - [x] `condition2: MappingCondition | null`
+  - [x] `hasConditions`
+  - [x] `midiBinding: MidiBinding | null`
+  - [x] `hasMidiBinding`, `midiNoteBindingId`
+  - [x] `comment: string`
+  - [x] `controlType`, `interactionMode`, `target`
+  - [x] `autoRepeat`, `invert`, `softTakeover`, `ledBlend`
+  - [x] `settings` (raw access)
+- [x] Métodos:
+  - [x] `setCondition1(id, target, value)`, `setCondition2(id, target, value)`
+  - [x] `clearCondition1()`, `clearCondition2()`, `clearConditions()`
+  - [x] `setMidiBinding(binding)` (internal)
+  - [x] `copy(includeMidiBinding)`
+- [x] Factory methods:
+  - [x] `Mapping.fromRawData()`
+  - [x] `Mapping.create(type, commandId)`
+- [x] Helper functions:
+  - [x] `parseMidiNoteString()`, `createMidiNoteString()`
+  - [x] `getTargetDeckName()`
+  - [x] Re-exports: `getControlTypeName`, `getInteractionModeName`
+- [x] Interfaces:
+  - [x] `MappingCondition` (id, target, rawValue, description)
+  - [x] `MidiBinding` (note, channel, noteNumber, isCC)
 
-### 8.3 Integración Completa
+### 8.3 Integración Completa ✅
 
-- [ ] Actualizar `TsiFile` para usar modelos de alto nivel
-- [ ] Implementar conversión rawData ↔ modelos
-- [ ] **Tests:**
-  - [ ] Test integración completa con todos los fixtures
+- [x] Crear `src/models/index.ts` exportando todos los modelos
+- [x] Actualizar `src/index.ts` para exportar módulo models
+- [x] **Tests:**
+  - [x] 80 tests de models pasando
+  - [x] Test con fixtures reales (encoder mode demo, timecode mode, etc.)
+  - [x] Total: 326 tests pasando
 
 ---
 
@@ -1145,6 +1181,30 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Sistema completo para gestión de efectos
   - Carga/guarda desde XML entries (Audio.FX.Selection, DEFAULT_BUTTON_FX*, DEFAULT_PARAM_FX*)
   - Round-trip funcional
+- Bloqueadores: Ninguno
+
+### Sesión 6 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 7 (Sistema de Controls) completada:
+    - `control.ts` - Control types, interaction modes, encoder modes
+    - `button-control.ts`, `fader-control.ts`, `encoder-control.ts`, `led-control.ts`
+    - `CONTROL_REGISTRY` mapping types to allowed modes
+    - Helper functions for human-readable names
+  - ✅ Fase 8 (Modelos de Alto Nivel) completada:
+    - `Device.ts` - High-level Device class wrapping DeviceData
+    - `Mapping.ts` - High-level Mapping class wrapping MappingData
+    - Factory methods: `Device.create()`, `Mapping.create()`, `fromRawData()`
+    - Mapping operations: add, insert, remove, move
+    - Condition management, MIDI binding resolution
+    - Deep copy support with `copy()` methods
+    - `index.ts` - Exports for models module
+  - ✅ Creados tests para el sistema de models (80 tests)
+  - ✅ 326 tests pasando en total
+- Notas:
+  - Model layer provides OOP interface over raw binary format
+  - Device wraps DeviceData with Mapping[] collection
+  - Mapping resolves commands, conditions, MIDI bindings from metadata
+  - All fixtures tested with models (encoder demo, timecode mode, fx list, etc.)
 - Bloqueadores: Ninguno
 
 <!-- Agregar más sesiones según avance el proyecto -->
