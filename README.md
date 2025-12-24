@@ -22,6 +22,35 @@ Use CMDR to edit TSI files with basic features missing in Traktor's Controller M
 
 CMDR is a Windows application, but there are several ways to [run it in you macOS](docs/running_on_macos.md).
 
+## 🚀 Migration to Cross-Platform (In Progress)
+
+We are actively migrating CMDR from .NET/WPF to a cross-platform **Electron + React** application. This will enable native support for:
+
+- ✅ **Windows** 
+- ✅ **Linux**
+- ✅ **macOS** (native, no Wine/Parallels needed)
+
+### Migration Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Infrastructure Base (monorepo, packages) | ✅ Complete |
+| 2 | TSI Parser - Binary Format | 🔄 In Progress |
+| 3 | TSI Parser - XML & Integration | ⏳ Pending |
+| 4 | Domain Models | ⏳ Pending |
+| 5 | UI Shell | ⏳ Pending |
+| 6-21 | Full UI, MIDI Learn, etc. | ⏳ Pending |
+
+**Details:** [Migration Plan](docs/development/MIGRATION_PLAN.md) | [Task List](docs/development/MIGRATION_TASKS.md)
+
+### New Tech Stack
+
+- **Frontend:** React 18, TypeScript, Tailwind CSS, shadcn/ui
+- **Desktop:** Electron with electron-vite
+- **State:** Zustand
+- **MIDI:** WebMIDI API
+- **Testing:** Vitest (35+ tests passing)
+
 ## Download and Installation
 
 The latest download is ALWAYS available in this link: 
