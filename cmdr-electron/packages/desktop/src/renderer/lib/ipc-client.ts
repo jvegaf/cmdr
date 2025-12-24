@@ -5,6 +5,8 @@
  * Integrates with @cmdr/core for TSI file operations.
  *
  * The electron API is exposed via contextBridge in preload/index.ts.
+ *
+ * Phase 18: Added menu action listener support.
  */
 
 import { TsiFile } from '@cmdr/core';
@@ -18,6 +20,12 @@ interface FileData {
   content: string; // Base64 encoded
 }
 
+// Menu action payload from main process
+export interface MenuActionPayload {
+  action: string;
+  payload?: unknown;
+}
+
 interface ElectronAPI {
   openFile: () => Promise<FileData | null>;
   saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
@@ -25,6 +33,8 @@ interface ElectronAPI {
   writeFile: (filePath: string, content: string) => Promise<boolean>;
   // Phase 16: CSV export
   saveCsv: (content: string, defaultPath?: string) => Promise<string | null>;
+  // Phase 18: Menu action listener
+  onMenuAction: (callback: (payload: MenuActionPayload) => void) => () => void;
 }
 
 // ============================================================================
@@ -213,4 +223,21 @@ export const ipcClient = {
  */
 export function useIsElectron(): boolean {
   return ipcClient.isElectron();
+}
+
+/**
+ * Subscribe to menu actions from the application menu
+ * @param callback Function to call when a menu action is triggered
+ * @returns Unsubscribe function
+ */
+export function subscribeToMenuActions(
+  callback: (payload: MenuActionPayload) => void
+): () => void {
+  try {
+    const api = getElectronAPI();
+    return api.onMenuAction(callback);
+  } catch {
+    // Not running in Electron, return no-op unsubscribe
+    return () => {};
+  }
 }

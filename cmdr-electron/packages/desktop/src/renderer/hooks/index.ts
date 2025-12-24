@@ -4,3 +4,7 @@ export {
 	SHORTCUTS,
 	useKeyboardShortcuts,
 } from "./useKeyboardShortcuts";
+
+// Phase 18: Menu actions
+export type { MenuActionHandlers } from "./useMenuActions";
+export { useMenuActions } from "./useMenuActions";

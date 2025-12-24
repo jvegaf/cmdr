@@ -29,6 +29,10 @@
  * - About dialog
  * - Settings dialog with persistent preferences
  * - Keyboard shortcuts reference dialog
+ *
+ * Phase 18 additions:
+ * - Application menu integration (File, Edit, View, Help)
+ * - Menu actions handled via IPC from main process
  */
 
 import { type Device, type Mapping, TsiFile } from "@cmdr/core";
@@ -71,7 +75,7 @@ import { MappingList } from "./components/mappings";
 import { CommandsReport, ConditionsSummary } from "./components/reports";
 import { ThemeProvider, ThemeToggle } from "./components/theme";
 import { Button } from "./components/ui";
-import { SHORTCUTS, useKeyboardShortcuts } from "./hooks";
+import { SHORTCUTS, useKeyboardShortcuts, useMenuActions } from "./hooks";
 import {
 	exportCommandsReportToCsv,
 	exportConditionsSummaryToCsv,
@@ -499,6 +503,57 @@ function AppLayout() {
 
 		return filterMappings(selectedDevice.mappings, searchQuery, filters);
 	}, [selectedDevice, activeFile, hasActiveFilters]);
+
+	// ========================================================================
+	// Menu Actions (Phase 18)
+	// ========================================================================
+
+	// Handle close file from menu
+	const handleCloseFile = useCallback(() => {
+		if (activeFile) {
+			handleCloseFileRequest(activeFile.id);
+		}
+	}, [activeFile, handleCloseFileRequest]);
+
+	// Handle select all from menu
+	const handleSelectAll = useCallback(() => {
+		if (activeFile && selectedDevice) {
+			const allIds = selectedDevice.mappings.map((m) => m.id);
+			selectMappings(activeFile.id, allIds);
+		}
+	}, [activeFile, selectedDevice, selectMappings]);
+
+	// Application menu actions
+	// AIDEV-NOTE: These handlers are called from the native application menu
+	// via IPC events from the main process
+	useMenuActions({
+		// File menu
+		onNew: handleNewFile,
+		onOpen: handleOpenFile,
+		onSave: handleSaveFile,
+		onSaveAs: handleSaveAsFile,
+		onClose: handleCloseFile,
+		onExportCsv: handleExportCsv,
+		onSettings: () => setShowSettingsDialog(true),
+
+		// Edit menu
+		onUndo: handleUndo,
+		onRedo: handleRedo,
+		onCut: handleCut,
+		onCopy: handleCopy,
+		onPaste: handlePaste,
+		onDuplicate: handleDuplicate,
+		onDelete: handleDelete,
+		onSelectAll: handleSelectAll,
+
+		// View menu
+		onShowCommandsReport: handleShowCommandsReport,
+		onShowConditionsSummary: handleShowConditionsSummary,
+
+		// Help menu
+		onShortcuts: () => setShowShortcutsDialog(true),
+		onAbout: () => setShowAboutDialog(true),
+	});
 
 	// ========================================================================
 	// Render

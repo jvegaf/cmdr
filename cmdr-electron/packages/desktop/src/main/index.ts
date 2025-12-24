@@ -3,11 +3,14 @@
  *
  * AIDEV-NOTE: Entry point for the Electron main process.
  * Handles window creation, IPC, and native OS integration.
+ *
+ * Phase 18: Added application menu setup.
  */
 
 import { app, BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 import { registerIpcHandlers } from './ipc.js';
+import { setupApplicationMenu } from './menu.js';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -18,7 +21,9 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 700,
     show: false,
-    autoHideMenuBar: true,
+    // AIDEV-NOTE: Changed from autoHideMenuBar to show menu
+    // Set to false to always show menu bar on Windows/Linux
+    autoHideMenuBar: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -46,7 +51,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // Set up application menu
+  setupApplicationMenu();
+  
+  // Register IPC handlers
   registerIpcHandlers();
+  
+  // Create the main window
   createWindow();
 
   app.on('activate', () => {
