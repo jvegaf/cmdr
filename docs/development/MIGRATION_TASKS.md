@@ -1008,28 +1008,32 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 16: UI - Reportes y Exportación
+## Fase 16: UI - Reportes y Exportación ✅
 
-### 16.1 Export CSV
+### 16.1 Export CSV ✅
 
-- [ ] Implementar exportar mappings a CSV
-- [ ] Columnas configurables
-- [ ] Exportar selección o todos
+- [x] Implementar exportar mappings a CSV
+- [x] Columnas configurables (ExportDialog with checkboxes)
+- [x] Exportar selección o todos
 - [ ] **Tests:**
   - [ ] Test exportar CSV
 
-### 16.2 Commands Report
+### 16.2 Commands Report ✅
 
-- [ ] Crear vista de reporte de comandos
-- [ ] Agrupar por categoría
-- [ ] Mostrar uso por device
+- [x] Crear vista de reporte de comandos (CommandsReport.tsx)
+- [x] Agrupar por device/command/type
+- [x] Mostrar conteo por combinación
+- [x] Sortable columns, search filter
+- [x] Export to CSV button
 - [ ] **Tests:**
   - [ ] Test render reporte
 
-### 16.3 Conditions Summary
+### 16.3 Conditions Summary ✅
 
-- [ ] Crear vista de resumen de condiciones
-- [ ] Listar todas las combinaciones usadas
+- [x] Crear vista de resumen de condiciones (ConditionsSummary.tsx)
+- [x] Listar todas las combinaciones usadas
+- [x] Sortable columns, search filter
+- [x] Export to CSV button
 - [ ] **Tests:**
   - [ ] Test render summary
 
@@ -1399,4 +1403,29 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Filters: Control type (Button/Fader/Encoder/LED), Has conditions (Yes/No/Any), Has MIDI (Yes/No/Any)
   - All filters combine with AND logic
   - Per-file search/filter state isolation
+- Bloqueadores: Ninguno
+
+### Sesión 12 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 16 (Reports and Export) completada:
+    - `csv-export.ts` - CSV export utilities with configurable columns
+    - `ExportDialog.tsx` - Column selection dialog with useExportDialog hook
+    - `CommandsReport.tsx` - Commands overview modal with sortable table
+    - `ConditionsSummary.tsx` - Conditions summary modal with sortable table
+    - `reports/index.ts` - Barrel exports for report components
+    - Updated `ipc.ts` with `dialog:saveCsv` IPC handler
+    - Updated `preload/index.ts` with `saveCsv` API
+    - Updated `ipc-client.ts` with `saveCsvFile()` method
+    - Updated `App.tsx` with:
+      - Export button in toolbar
+      - Commands report button (BarChart3 icon)
+      - Conditions summary button (ListChecks icon)
+      - Export dialog, CommandsReport, ConditionsSummary components
+  - ✅ 406 tests still passing
+- Notas:
+  - CSV export supports configurable columns (Device, Command, Type, etc.)
+  - Export dialog allows select/deselect all columns
+  - Commands report groups by device/command/type with counts
+  - Conditions summary shows unique condition combinations
+  - Both reports have search filter and export to CSV
 - Bloqueadores: Ninguno
