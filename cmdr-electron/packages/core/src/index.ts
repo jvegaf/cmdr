@@ -27,10 +27,6 @@ export * from "./conditions/index.js";
 
 // Controls
 export * from "./controls/index.js";
-
-// FX Settings
-export * from "./fx/index.js";
-
 // Enums
 export * from "./enums/index.js";
 export {
@@ -114,16 +110,33 @@ export {
 	parseMidiNoteBindingFromFrame,
 	writeMidiNoteBinding,
 } from "./format/MidiNoteBinding.js";
+// FX Settings
+export * from "./fx/index.js";
 // High-level models
 export {
 	createEmptyTsiFile,
+	createMidiNoteString,
+	DEVICE_TYPE_GENERIC_KEYBOARD,
+	DEVICE_TYPE_GENERIC_MIDI,
+	Device,
 	getAllDevices,
+	getControlTypeName,
+	getDeviceTargetName,
+	getDeviceTypeName,
+	getInteractionModeName,
+	getTargetDeckName,
 	getTotalMappingCount,
+	isGenericMidiDevice,
+	Mapping,
+	type MappingCondition,
+	type MidiBinding,
+	PROPRIETARY_DEVICE_TYPES,
+	parseMidiNoteString,
 	parseTsiFile,
 	serializeTsiFile,
 	TsiFile,
 	type TsiFileData,
-} from "./models/TsiFile.js";
+} from "./models/index.js";
 // Utils
 export { FourCC } from "./utils/FourCC.js";
 // XML parsing
