@@ -1,0 +1,93 @@
+# electron-builder configuration
+# https://www.electron.build/configuration/configuration
+
+appId: com.cmdr.tsi-editor
+productName: CMDR TSI Editor
+copyright: Copyright (c) 2024 CMDR Project
+
+# Directories
+directories:
+  buildResources: resources
+  output: release/${version}
+
+# Files to include in the build
+files:
+  - out/**/*
+  - "!**/*.map"
+
+# Compression
+compression: maximum
+removePackageScripts: true
+
+# AIDEV-NOTE: The asar archive helps with performance and protects source code
+asar: true
+
+# Windows configuration
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: resources/icon.ico
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: CMDR TSI Editor
+  license: ../../../LICENSE
+
+# Linux configuration
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: resources/icons
+  category: Audio;AudioVideo;Music
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  synopsis: TSI File Editor for NI Traktor Pro
+  description: |
+    CMDR is a powerful editor for creating and modifying TSI (Traktor Settings Import)
+    files used to configure MIDI controller mappings in Native Instruments Traktor Pro.
+
+deb:
+  depends:
+    - libasound2
+
+# macOS configuration (for future use)
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.icns
+  category: public.app-category.music
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  sign: false
+
+# Publish configuration (disabled for now)
+publish: null
+
+# Extra resources to copy to the app
+extraResources:
+  - from: ../../../LICENSE
+    to: LICENSE
+  - from: ../../../README.md
+    to: README.md

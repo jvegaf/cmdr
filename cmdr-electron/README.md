@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 16 Complete - Reports and CSV Export
+> **Status:** Phase 19 - Packaging and Distribution
 
 ## Project Structure
 
@@ -32,11 +32,41 @@ pnpm build
 pnpm --filter @cmdr/desktop dev
 ```
 
+## Building Distributable Packages
+
+```bash
+# Build the app (required before packaging)
+pnpm --filter @cmdr/desktop build
+
+# Package for current platform
+pnpm --filter @cmdr/desktop dist
+
+# Package for specific platforms
+pnpm --filter @cmdr/desktop dist:linux    # AppImage, .deb
+pnpm --filter @cmdr/desktop dist:win      # .exe (NSIS), portable
+pnpm --filter @cmdr/desktop dist:mac      # .dmg (requires macOS)
+
+# Create unpacked build (for testing)
+pnpm --filter @cmdr/desktop pack
+```
+
+### Build Outputs
+
+Distributable packages are created in `packages/desktop/release/{version}/`:
+
+| Platform | Format | File |
+|----------|--------|------|
+| Linux | AppImage | `CMDR TSI Editor-{version}-linux-x86_64.AppImage` |
+| Linux | Debian | `cmdr-tsi-editor_{version}_amd64.deb` |
+| Windows | Installer | `CMDR TSI Editor-{version}-win-x64.exe` |
+| Windows | Portable | `CMDR TSI Editor-{version}-win-x64-portable.exe` |
+| macOS | DMG | `CMDR TSI Editor-{version}-mac-{arch}.dmg` |
+
 ## Package Status
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **326 tests passing.**
+The core TSI parsing library. **419 tests passing.**
 
 **Completed:**
 - Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
@@ -92,9 +122,9 @@ MIDI integration package. **80 tests passing.**
 - MIDI Learn support
 - Full test coverage with WebMIDI mocking
 
-### @cmdr/desktop 🚧
+### @cmdr/desktop ✅
 
-Electron + React application. **Builds successfully.**
+Electron + React application. **Builds and packages successfully.**
 
 **Completed:**
 - electron-vite configuration
@@ -108,7 +138,8 @@ Electron + React application. **Builds successfully.**
 - **Zustand Stores:**
   - `useTsiStore` - TSI file state with multi-select support
   - `useMidiStore` - MIDI device state and MIDI Learn
-  - `useHistoryStore` - Undo/Redo history management (Phase 14.5)
+  - `useHistoryStore` - Undo/Redo history management
+  - `useAppStore` - App settings and recent files
 - **IPC Client:**
   - Type-safe Electron IPC wrapper
   - Base64 encoding for binary file transfer
@@ -116,25 +147,27 @@ Electron + React application. **Builds successfully.**
   - `Button` with CVA variants
   - 3-panel layout (devices, mappings, properties)
   - Toolbar and status bar
-- **Data Components (Phase 11):**
+- **Data Components:**
   - `DeviceList` - Collapsible list with context menu
+  - `DeviceEditor` - Device property editing
   - `MappingList` - Virtualized table with sorting
   - `MappingEditor` - Properties panel for selected mappings
-- **Property Editing (Phase 12):**
+- **Property Editing:**
   - `CommandSelector` - Hierarchical command picker
   - `ConditionSelector` - Condition picker with value editors
   - `MidiBindingEditor` - MIDI Learn integration
-- **File Operations (Phase 13):**
+- **File Operations:**
   - `FileTabs` - Multiple file tabs with dirty indicators
   - New/Open/Save/Save As file operations
   - Recent files list
   - Unsaved changes confirmation dialog
-- **Advanced Editing (Phase 14):**
+  - App close confirmation with dirty files
+- **Advanced Editing:**
   - Copy/Cut/Paste/Duplicate/Delete mappings
   - Internal clipboard
   - Move mappings between devices
   - Edit toolbar with icons
-- **Undo/Redo System (Phase 14.5):**
+- **Undo/Redo System:**
   - Per-file history stacks (max 50 actions)
   - Undoable operations: edit, delete, paste, duplicate, cut
   - Ctrl+Z / Ctrl+Y keyboard shortcuts
@@ -147,22 +180,33 @@ Electron + React application. **Builds successfully.**
   - Ctrl+A: Select all
   - Delete/Backspace: Delete selected
   - Escape: Clear selection
-- **Search and Filters (Phase 15):**
+- **Search and Filters:**
   - `SearchInput` - Debounced search with Ctrl+F shortcut
   - `FilterPanel` - Control type, conditions, MIDI filters
   - Filter mappings by command name, comment, MIDI binding, conditions
   - Combined AND logic for filters
-- **Reports and Export (Phase 16):**
+- **Reports and Export:**
   - `ExportDialog` - CSV export with configurable columns
   - `CommandsReport` - Commands overview with grouping and counts
   - `ConditionsSummary` - Unique condition combinations summary
   - Export to CSV from reports
   - Sortable tables with search filters
-
-**Pending:**
-- Dialogs and Settings (Phase 17)
-- Application Menu (Phase 18)
-- Packaging and Distribution (Phase 19)
+- **Dialogs and Settings:**
+  - `AboutDialog` - Version, credits, links
+  - `SettingsDialog` - General, Editor, MIDI settings
+  - `KeyboardShortcutsDialog` - Shortcuts reference
+  - Settings persistence in localStorage
+- **Application Menu:**
+  - Native Electron menu (File, Edit, View, Help)
+  - macOS-specific app menu
+  - Theme submenu
+  - Menu action IPC integration
+- **Packaging:**
+  - electron-builder configuration
+  - Linux: AppImage, .deb
+  - Windows: NSIS installer, portable
+  - macOS: DMG (untested)
+  - Application icons
 
 ## Development
 
@@ -204,17 +248,15 @@ pnpm --filter @cmdr/desktop build
 
 ### Test Fixtures
 
-The `packages/core/__tests__/fixtures/` directory contains real TSI files for testing:
+The `packages/core/__tests__/fixtures/` directory contains 23 real TSI files for testing:
 
-| Fixture | Description |
-|---------|-------------|
-| `encoder mode demo.tsi` | Encoder mode examples |
-| `fx_list_from_TK.tsi` | FX list configuration |
-| `kontrol s4 mk2*.tsi` | Kontrol S4 MK2 mappings |
-| `s4mk3 override*.tsi` | S4 MK3 factory overrides |
-| `semitone *.tsi` | Semitone value tests |
-| `timecode_mode*.tsi` | Timecode mode examples |
-| ... | And more |
+| Category | Files | Description |
+|----------|-------|-------------|
+| Unit Tests | 10 | Encoder modes, FX lists, semitones, timecode modes |
+| Traktor Ready | 12 | S2/S4/S8 MK1-3, CDJ-2000NX2, XDJ-1000, DDJ-T1, Numark 4Trak |
+| Keyboard | 1 | Keyboard timecode mode mappings |
+
+See `packages/core/__tests__/fixtures/README.md` for detailed documentation.
 
 ## Architecture
 
@@ -339,15 +381,19 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | 14.5 Undo/Redo | ✅ Complete | Per-file history, undoable operations |
 | 15. Search & Filters | ✅ Complete | Search input, filter panel, combined logic |
 | 16. Reports & Export | ✅ Complete | CSV export, commands report, conditions summary |
-| 17-21. Settings & More | ⏳ Pending | Dialogs, Menu, Packaging |
+| 17. Dialogs & Settings | ✅ Complete | About, Settings, Keyboard Shortcuts dialogs |
+| 18. Application Menu | ✅ Complete | Native Electron menu with IPC integration |
+| 19. Packaging | ✅ Complete | electron-builder config, Linux/Windows/macOS |
+| 20. Testing & QA | ⏳ Pending | Coverage, manual testing, performance |
+| 21. Documentation | ⏳ Pending | User guide, API docs, changelog |
 
 ### Test Summary
 
 ```
-@cmdr/core:   326 tests passing
+@cmdr/core:   339 tests passing
 @cmdr/midi:    80 tests passing
 ───────────────────────────────
-Total:        406 tests passing
+Total:        419 tests passing
 ```
 
 ## License

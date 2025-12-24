@@ -2,8 +2,10 @@
   "name": "@cmdr/desktop",
   "version": "0.1.0",
   "description": "CMDR Desktop Application - Electron + React",
-  "main": "./dist/main/index.js",
+  "main": "./out/main/index.js",
   "type": "module",
+  "author": "CMDR Project",
+  "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -13,7 +15,13 @@
     "typecheck": "tsc --noEmit",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
-    "clean": "rm -rf dist out"
+    "clean": "rm -rf dist out release",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
+    "dist:mac": "electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@cmdr/core": "workspace:*",
@@ -42,6 +50,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "electron": "^28.0.0",
+    "electron-builder": "^24.13.3",
     "electron-vite": "^2.0.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
