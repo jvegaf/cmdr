@@ -25,6 +25,9 @@ export * from "./commands/index.js";
 // Conditions
 export * from "./conditions/index.js";
 
+// Controls
+export * from "./controls/index.js";
+
 // FX Settings
 export * from "./fx/index.js";
 
