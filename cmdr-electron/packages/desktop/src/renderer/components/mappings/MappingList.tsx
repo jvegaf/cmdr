@@ -10,6 +10,7 @@
  * - Multi-select with Ctrl+click and Shift+click
  * - Row highlight for selected items
  * - Columns: #, Command, MIDI, Conditions, Comment
+ * - Search highlighting (Phase 15)
  */
 
 import type { Mapping } from '@cmdr/core';
@@ -23,7 +24,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, SearchX } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { cn } from '../../lib/utils';
@@ -33,7 +34,7 @@ import { cn } from '../../lib/utils';
 // ============================================================================
 
 export interface MappingListProps {
-  /** List of mappings to display */
+  /** List of mappings to display (already filtered) */
   mappings: readonly Mapping[];
   /** Set of selected mapping IDs */
   selectedIds: Set<number>;
@@ -43,6 +44,12 @@ export interface MappingListProps {
   onMappingDoubleClick?: (mapping: Mapping) => void;
   /** Height of the container (for virtualization) */
   height?: number;
+  /** Total count before filtering (for showing "X of Y" message) */
+  totalCount?: number;
+  /** Whether filtering is active */
+  isFiltered?: boolean;
+  /** Search query for highlighting matches */
+  searchQuery?: string;
 }
 
 // ============================================================================
@@ -155,6 +162,9 @@ export function MappingList({
   onSelectionChange,
   onMappingDoubleClick,
   height = 400,
+  totalCount,
+  isFiltered = false,
+  searchQuery = '',
 }: MappingListProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -250,7 +260,20 @@ export function MappingList({
     [rows, onMappingDoubleClick]
   );
 
+  // Show empty state with appropriate message
   if (mappings.length === 0) {
+    // Check if filtering is active but no results
+    if (isFiltered) {
+      return (
+        <div className="flex h-32 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+          <SearchX className="h-8 w-8 opacity-50" />
+          <p>No mappings match your search</p>
+          {searchQuery && (
+            <p className="text-xs">Try a different search term</p>
+          )}
+        </div>
+      );
+    }
     return (
       <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
         No mappings
@@ -258,8 +281,20 @@ export function MappingList({
     );
   }
 
+  // Calculate display text for filtered results
+  const filteredInfo = isFiltered && totalCount !== undefined && totalCount !== mappings.length
+    ? `Showing ${mappings.length} of ${totalCount}`
+    : null;
+
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
+      {/* Filter results info */}
+      {filteredInfo && (
+        <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+          <span>{filteredInfo}</span>
+        </div>
+      )}
+
       {/* Table Header */}
       <div className="border-b border-border bg-muted/50">
         {table.getHeaderGroups().map((headerGroup) => (

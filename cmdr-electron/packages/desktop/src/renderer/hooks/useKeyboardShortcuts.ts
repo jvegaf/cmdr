@@ -16,6 +16,9 @@
  * Phase 14.5 additions:
  * - Ctrl+Z: Undo
  * - Ctrl+Y / Ctrl+Shift+Z: Redo
+ *
+ * Phase 15 additions:
+ * - Ctrl+F: Focus search input
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -36,6 +39,7 @@ export interface KeyboardShortcutHandlers {
 	onNew?: () => void;
 	onUndo?: () => void;
 	onRedo?: () => void;
+	onSearch?: () => void;
 }
 
 /**
@@ -142,6 +146,17 @@ export function useKeyboardShortcuts(
 				} else if (activeFile && canRedo(activeFile.id)) {
 					redo(activeFile.id);
 				}
+				return;
+			}
+
+			// ====================================================================
+			// Search (Phase 15)
+			// ====================================================================
+
+			// Ctrl+F: Focus search input
+			if (isCtrlOrMeta && event.key === "f") {
+				event.preventDefault();
+				handlersRef.current.onSearch?.();
 				return;
 			}
 
@@ -316,4 +331,5 @@ export const SHORTCUTS = {
 	new: getShortcutDisplay("n", { ctrl: true }),
 	undo: getShortcutDisplay("z", { ctrl: true }),
 	redo: getShortcutDisplay("y", { ctrl: true }),
+	search: getShortcutDisplay("f", { ctrl: true }),
 } as const;

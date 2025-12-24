@@ -46,6 +46,21 @@ import {
 // ============================================================================
 
 /**
+ * Filter criteria for mappings (Phase 15)
+ * AIDEV-NOTE: All filters are combined with AND logic
+ */
+export interface MappingFilters {
+	/** Filter by command category (e.g., "Deck Common", "Mixer") */
+	commandCategory?: string | null;
+	/** Filter by control type (Button, Fader, Encoder, LED) */
+	controlType?: string | null;
+	/** Filter by whether mapping has conditions */
+	hasConditions?: boolean | null;
+	/** Filter by whether mapping has MIDI binding */
+	hasMidiBinding?: boolean | null;
+}
+
+/**
  * Properties that can be updated on a mapping
  * AIDEV-NOTE: These map to the Mapping class setters
  */
@@ -83,6 +98,10 @@ export interface OpenFile {
 	selectedDeviceIndex: number | null;
 	/** Currently selected mapping IDs within the selected device */
 	selectedMappingIds: Set<number>;
+	/** Search query for filtering mappings (Phase 15) */
+	searchQuery: string;
+	/** Active filters for mappings (Phase 15) */
+	filters: MappingFilters;
 }
 
 /**
@@ -158,6 +177,11 @@ interface TsiState {
 	// Actions - Undo/Redo (Phase 14.5)
 	undo: (fileId: string) => void;
 	redo: (fileId: string) => void;
+
+	// Actions - Search and Filters (Phase 15)
+	setSearchQuery: (fileId: string, query: string) => void;
+	setFilters: (fileId: string, filters: Partial<MappingFilters>) => void;
+	clearFilters: (fileId: string) => void;
 
 	// Getters (computed from state)
 	getActiveFile: () => OpenFile | null;
@@ -324,6 +348,8 @@ export const useTsiStore = create<TsiState>()(
 				isDirty: false,
 				selectedDeviceIndex: devices.length > 0 ? 0 : null,
 				selectedMappingIds: new Set(),
+				searchQuery: "",
+				filters: {},
 			};
 
 			set((state) => {
@@ -1123,6 +1149,50 @@ export const useTsiStore = create<TsiState>()(
 		},
 
 		// ========================================================================
+		// Search and Filters (Phase 15)
+		// ========================================================================
+
+		setSearchQuery: (fileId, query) => {
+			set((state) => {
+				const file = state.openFiles.get(fileId);
+				if (!file) return state;
+
+				const newFiles = new Map(state.openFiles);
+				newFiles.set(fileId, { ...file, searchQuery: query });
+				return { openFiles: newFiles };
+			});
+		},
+
+		setFilters: (fileId, filters) => {
+			set((state) => {
+				const file = state.openFiles.get(fileId);
+				if (!file) return state;
+
+				const newFiles = new Map(state.openFiles);
+				newFiles.set(fileId, {
+					...file,
+					filters: { ...file.filters, ...filters },
+				});
+				return { openFiles: newFiles };
+			});
+		},
+
+		clearFilters: (fileId) => {
+			set((state) => {
+				const file = state.openFiles.get(fileId);
+				if (!file) return state;
+
+				const newFiles = new Map(state.openFiles);
+				newFiles.set(fileId, {
+					...file,
+					searchQuery: "",
+					filters: {},
+				});
+				return { openFiles: newFiles };
+			});
+		},
+
+		// ========================================================================
 		// Getters
 		// ========================================================================
 
@@ -1207,3 +1277,159 @@ export function useClipboardInfo(): {
 		mappingCount: state.clipboard?.mappings.length ?? 0,
 	}));
 }
+
+// ============================================================================
+// Search and Filter Helpers (Phase 15)
+// ============================================================================
+
+/**
+ * Hook to get search query for active file
+ */
+export function useSearchQuery(): string {
+	return useTsiStore((state) => {
+		if (!state.activeFileId) return "";
+		const file = state.openFiles.get(state.activeFileId);
+		return file?.searchQuery ?? "";
+	});
+}
+
+/**
+ * Hook to get filters for active file
+ */
+export function useFilters(): MappingFilters {
+	return useTsiStore((state) => {
+		if (!state.activeFileId) return {};
+		const file = state.openFiles.get(state.activeFileId);
+		return file?.filters ?? {};
+	});
+}
+
+/**
+ * Check if a mapping matches the search query
+ * AIDEV-NOTE: Searches in command name, comment, and MIDI binding
+ */
+export function mappingMatchesSearch(
+	mapping: Mapping,
+	query: string,
+): boolean {
+	if (!query.trim()) return true;
+
+	const lowerQuery = query.toLowerCase().trim();
+
+	// Search in command name
+	if (mapping.commandName.toLowerCase().includes(lowerQuery)) {
+		return true;
+	}
+
+	// Search in comment
+	if (mapping.comment?.toLowerCase().includes(lowerQuery)) {
+		return true;
+	}
+
+	// Search in MIDI binding note
+	if (mapping.midiBinding?.note?.toString().toLowerCase().includes(lowerQuery)) {
+		return true;
+	}
+
+	// Search in condition names
+	if (mapping.condition1?.description?.name?.toLowerCase().includes(lowerQuery)) {
+		return true;
+	}
+	if (mapping.condition2?.description?.name?.toLowerCase().includes(lowerQuery)) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Check if a mapping matches the filter criteria
+ * AIDEV-NOTE: All active filters must match (AND logic)
+ */
+export function mappingMatchesFilters(
+	mapping: Mapping,
+	filters: MappingFilters,
+): boolean {
+	// Filter by command category
+	// AIDEV-NOTE: Category is a Categories enum, convert to string for comparison
+	if (filters.commandCategory) {
+		const category = mapping.command?.category;
+		const categoryStr = category !== undefined ? String(category) : "";
+		if (categoryStr !== filters.commandCategory) {
+			return false;
+		}
+	}
+
+	// Filter by control type
+	if (filters.controlType) {
+		// AIDEV-NOTE: controlType is an enum, so compare as string for flexibility
+		const controlTypeName = String(mapping.controlType);
+		if (controlTypeName !== filters.controlType) {
+			return false;
+		}
+	}
+
+	// Filter by has conditions
+	if (filters.hasConditions !== null && filters.hasConditions !== undefined) {
+		const hasConditions = mapping.condition1 !== null || mapping.condition2 !== null;
+		if (hasConditions !== filters.hasConditions) {
+			return false;
+		}
+	}
+
+	// Filter by has MIDI binding
+	if (filters.hasMidiBinding !== null && filters.hasMidiBinding !== undefined) {
+		const hasBinding = mapping.midiBinding !== null;
+		if (hasBinding !== filters.hasMidiBinding) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Filter mappings by search query and filters
+ * Returns filtered mappings and match indices for highlighting
+ */
+export function filterMappings(
+	mappings: readonly Mapping[],
+	searchQuery: string,
+	filters: MappingFilters,
+): { filtered: Mapping[]; matchingIds: Set<number> } {
+	const matchingIds = new Set<number>();
+	const filtered: Mapping[] = [];
+
+	for (const mapping of mappings) {
+		const matchesSearch = mappingMatchesSearch(mapping, searchQuery);
+		const matchesFilters = mappingMatchesFilters(mapping, filters);
+
+		if (matchesSearch && matchesFilters) {
+			filtered.push(mapping);
+			matchingIds.add(mapping.id);
+		}
+	}
+
+	return { filtered, matchingIds };
+}
+
+/**
+ * Hook to check if any filters are active
+ */
+export function useHasActiveFilters(): boolean {
+	return useTsiStore((state) => {
+		if (!state.activeFileId) return false;
+		const file = state.openFiles.get(state.activeFileId);
+		if (!file) return false;
+
+		const { filters, searchQuery } = file;
+		return (
+			searchQuery.trim() !== "" ||
+			filters.commandCategory != null ||
+			filters.controlType != null ||
+			filters.hasConditions != null ||
+			filters.hasMidiBinding != null
+		);
+	});
+}
+

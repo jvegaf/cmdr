@@ -14,6 +14,11 @@
  * - Keyboard shortcuts for copy/cut/paste/duplicate/delete
  * - Edit toolbar buttons
  * - Clipboard operations
+ *
+ * Phase 15 additions:
+ * - Search input for filtering mappings
+ * - Filter panel with control type, conditions, MIDI filters
+ * - Combined search + filter logic
  */
 
 import { type Device, type Mapping, TsiFile } from "@cmdr/core";
@@ -31,8 +36,9 @@ import {
 	Trash2,
 	Undo2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { FilterPanel, SearchInput } from "./components/common";
 import { DeviceList } from "./components/devices";
 import { ConfirmDialog, useConfirmDialog } from "./components/dialogs";
 import { MappingEditor } from "./components/editors";
@@ -46,8 +52,10 @@ import { useAppStore, useRecentFiles } from "./store/appStore";
 import { useHistoryInfo } from "./store/historyStore";
 import { useMidiStore } from "./store/midiStore";
 import {
+	filterMappings,
 	useActiveFile,
 	useCanPaste,
+	useHasActiveFilters,
 	useOpenFiles,
 	useTsiStore,
 } from "./store/tsiStore";
@@ -64,8 +72,10 @@ function AppLayout() {
 	const openFiles = useOpenFiles();
 	const recentFiles = useRecentFiles();
 	const canPaste = useCanPaste();
+	const hasActiveFilters = useHasActiveFilters();
 	const historyInfo = useHistoryInfo(activeFile?.id ?? null);
 	const addRecentFile = useAppStore((s) => s.addRecentFile);
+	const searchInputRef = useRef<HTMLInputElement>(null);
 	const {
 		openFile,
 		createNewFile,
@@ -83,6 +93,10 @@ function AppLayout() {
 		// Phase 14.5: Undo/Redo
 		undo,
 		redo,
+		// Phase 15: Search and Filters
+		setSearchQuery,
+		setFilters,
+		clearFilters,
 	} = useTsiStore();
 	const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
 
@@ -277,6 +291,11 @@ function AppLayout() {
 		}
 	}, [activeFile, historyInfo.canRedo, redo]);
 
+	// Phase 15: Focus search input (for Ctrl+F shortcut)
+	const handleFocusSearch = useCallback(() => {
+		searchInputRef.current?.focus();
+	}, []);
+
 	// Enable state for edit buttons
 	const hasSelection =
 		activeFile !== null && activeFile.selectedMappingIds.size > 0;
@@ -294,6 +313,7 @@ function AppLayout() {
 		onDelete: handleDelete,
 		onUndo: handleUndo,
 		onRedo: handleRedo,
+		onSearch: handleFocusSearch,
 	});
 
 	// ========================================================================
@@ -331,6 +351,52 @@ function AppLayout() {
 		},
 		[activeFile, selectMappings],
 	);
+
+	// ========================================================================
+	// Search and Filters (Phase 15)
+	// ========================================================================
+
+	// Handle search query change
+	const handleSearchChange = useCallback(
+		(query: string) => {
+			if (!activeFile) return;
+			setSearchQuery(activeFile.id, query);
+		},
+		[activeFile, setSearchQuery],
+	);
+
+	// Handle filter change
+	const handleFiltersChange = useCallback(
+		(newFilters: Parameters<typeof setFilters>[1]) => {
+			if (!activeFile) return;
+			setFilters(activeFile.id, newFilters);
+		},
+		[activeFile, setFilters],
+	);
+
+	// Handle clear filters
+	const handleClearFilters = useCallback(() => {
+		if (!activeFile) return;
+		clearFilters(activeFile.id);
+	}, [activeFile, clearFilters]);
+
+	// Filter mappings based on search query and filters
+	const filteredMappings = useMemo(() => {
+		if (!selectedDevice || !activeFile) return { filtered: [], matchingIds: new Set<number>() };
+
+		const searchQuery = activeFile.searchQuery;
+		const filters = activeFile.filters;
+
+		// If no search or filters, return all mappings
+		if (!searchQuery && !hasActiveFilters) {
+			return {
+				filtered: [...selectedDevice.mappings],
+				matchingIds: new Set(selectedDevice.mappings.map((m) => m.id)),
+			};
+		}
+
+		return filterMappings(selectedDevice.mappings, searchQuery, filters);
+	}, [selectedDevice, activeFile, hasActiveFilters]);
 
 	// ========================================================================
 	// Render
@@ -512,17 +578,37 @@ function AppLayout() {
 				<section className="flex flex-1 flex-col overflow-hidden">
 					{activeFile && selectedDevice ? (
 						<>
-							<div className="border-b border-border bg-muted/30 px-4 py-2">
-								<h2 className="text-sm font-medium">
-									Mappings ({selectedDevice.mappingCount})
-								</h2>
+							{/* Search and Filter Bar (Phase 15) */}
+							<div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2">
+								<SearchInput
+									ref={searchInputRef}
+									value={activeFile.searchQuery}
+									onChange={handleSearchChange}
+									placeholder="Search mappings..."
+									showShortcut
+									className="w-64"
+								/>
+								<FilterPanel
+									filters={activeFile.filters}
+									onFiltersChange={handleFiltersChange}
+									onClearFilters={handleClearFilters}
+									hasActiveFilters={hasActiveFilters}
+								/>
+								<div className="ml-auto text-sm text-muted-foreground">
+									{hasActiveFilters || activeFile.searchQuery
+										? `${filteredMappings.filtered.length} of ${selectedDevice.mappingCount} mappings`
+										: `${selectedDevice.mappingCount} mappings`}
+								</div>
 							</div>
 							<div className="flex-1 overflow-hidden">
 								<MappingList
-									mappings={selectedDevice.mappings}
+									mappings={filteredMappings.filtered}
 									selectedIds={activeFile.selectedMappingIds}
 									onSelectionChange={handleMappingSelectionChange}
 									height={undefined} // Let it fill available space
+									totalCount={selectedDevice.mappingCount}
+									isFiltered={hasActiveFilters || !!activeFile.searchQuery}
+									searchQuery={activeFile.searchQuery}
 								/>
 							</div>
 						</>
