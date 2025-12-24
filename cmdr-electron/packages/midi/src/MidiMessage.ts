@@ -122,7 +122,7 @@ export class MidiMessage {
       case 0xe0: // Pitch Bend
         data.type = 'pitchbend';
         // Pitch bend is 14-bit: LSB in data[1], MSB in data[2]
-        data.pitchBend = ((raw[2] ?? 0) << 7) | (raw[1] ?? 0) - 8192;
+        data.pitchBend = (((raw[2] ?? 0) << 7) | (raw[1] ?? 0)) - 8192;
         break;
 
       case 0xa0: // Polyphonic Aftertouch

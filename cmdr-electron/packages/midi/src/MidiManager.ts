@@ -70,8 +70,10 @@ export class MidiManager {
     }
 
     try {
-      // Request MIDI access with sysex support
-      this.midiAccess = (await (navigator as Navigator & { requestMIDIAccess: (options?: { sysex?: boolean }) => Promise<WebMidiAccess> }).requestMIDIAccess({ sysex: true })) as WebMidiAccess;
+      // AIDEV-NOTE: Cast through unknown because DOM MIDIAccess type and our WebMidiAccess
+      // type are structurally similar but TS sees them as incompatible
+      const requestMIDI = (navigator as unknown as { requestMIDIAccess: (options?: { sysex?: boolean }) => Promise<unknown> }).requestMIDIAccess;
+      this.midiAccess = (await requestMIDI({ sysex: true })) as WebMidiAccess;
       this.isEnabled = true;
 
       // Set up state change listener

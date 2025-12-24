@@ -8,8 +8,26 @@
  * - Device enumeration (list available MIDI inputs/outputs)
  * - MIDI message listening for MIDI Learn
  * - MIDI message parsing (Note On/Off, CC, etc.)
+ * - Binding utilities to convert MIDI messages to Traktor bindings
  */
 
 export { MidiManager } from './MidiManager.js';
 export { MidiMessage, type MidiMessageData } from './MidiMessage.js';
-export type { MidiDevice, MidiPort } from './types.js';
+export {
+  BINDABLE_MESSAGE_TYPES,
+  createMidiNoteString,
+  describeBinding,
+  isBindableMessageType,
+  midiMessageToBinding,
+  noteNameToNumber,
+  noteNumberToName,
+  parseMidiNoteString,
+  type MidiBindingData,
+} from './binding-utils.js';
+export type {
+  MidiDevice,
+  MidiLearnOptions,
+  MidiMessageCallback,
+  MidiMessageType,
+  MidiPort,
+} from './types.js';
