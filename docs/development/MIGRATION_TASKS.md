@@ -724,15 +724,16 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 11: UI - Componentes de Datos
+## Fase 11: UI - Componentes de Datos ✅
 
-### 11.1 DeviceList
+### 11.1 DeviceList ✅
 
-- [ ] Crear `components/devices/device-list.tsx`
-- [ ] Implementar lista de devices
-- [ ] Selección de device
-- [ ] Indicador de device activo
-- [ ] Menú contextual (rename, delete, duplicate)
+- [x] Crear `components/devices/DeviceList.tsx`
+- [x] Implementar lista de devices con items colapsables
+- [x] Selección de device con highlighting
+- [x] Indicador de device activo (keyboard vs MIDI icon)
+- [x] Menú contextual (rename, delete, duplicate)
+- [x] Muestra tipo de device y cantidad de mappings
 - [ ] **Tests:**
   - [ ] Test render lista
   - [ ] Test selección
@@ -746,31 +747,41 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - [ ] **Tests:**
   - [ ] Test edición
 
-### 11.3 MappingList
+### 11.3 MappingList ✅
 
-- [ ] Crear `components/mappings/mapping-list.tsx`
-- [ ] Implementar con shadcn DataTable
-- [ ] Columnas:
-  - [ ] # (índice)
-  - [ ] Command
-  - [ ] MIDI Binding
-  - [ ] Conditions
-  - [ ] Comment
-- [ ] Selección múltiple
-- [ ] Ordenamiento por columna
+- [x] Crear `components/mappings/MappingList.tsx`
+- [x] Implementar con @tanstack/react-table
+- [x] Virtualización con @tanstack/react-virtual (1000+ mappings)
+- [x] Columnas:
+  - [x] # (índice)
+  - [x] Command (sortable)
+  - [x] MIDI Binding
+  - [x] Conditions
+  - [x] Comment
+- [x] Selección múltiple (Ctrl+click, Shift+click)
+- [x] Ordenamiento por columna (click header)
 - [ ] Filtrado
 - [ ] **Tests:**
   - [ ] Test render lista
   - [ ] Test selección múltiple
   - [ ] Test ordenamiento
 
-### 11.4 MappingRow
+### 11.4 MappingEditor ✅
 
-- [ ] Crear `components/mappings/mapping-row.tsx`
-- [ ] Render optimizado para virtualización
-- [ ] Estados: normal, selected, hover
+- [x] Crear `components/editors/MappingEditor.tsx`
+- [x] Panel lateral con detalles del mapping seleccionado
+- [x] Secciones:
+  - [x] Command (name, type, target)
+  - [x] Control (type, interaction mode, flags)
+  - [x] MIDI Binding (note/CC, channel, type)
+  - [x] Conditions (condition 1 & 2)
+  - [x] Comment
+- [x] Summary view when multiple mappings selected
+- [x] MIDI Learn button placeholder
+- [ ] Edición real de propiedades
 - [ ] **Tests:**
-  - [ ] Test render row
+  - [ ] Test render editor
+  - [ ] Test edición
 
 ### 11.5 Drag & Drop para MappingList
 
@@ -784,20 +795,6 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 ---
 
 ## Fase 12: UI - Editores
-
-### 12.1 MappingEditor
-
-- [ ] Crear `components/editors/mapping-editor.tsx`
-- [ ] Panel lateral con detalles del mapping seleccionado
-- [ ] Secciones:
-  - [ ] Command
-  - [ ] Conditions
-  - [ ] MIDI Binding
-  - [ ] Comment
-- [ ] Soporte para edición múltiple
-- [ ] **Tests:**
-  - [ ] Test render editor
-  - [ ] Test edición
 
 ### 12.2 CommandEditor
 
@@ -1294,6 +1291,25 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Multi-select mappings via Ctrl+click (toggle) and Shift+click (range)
   - Theme persisted in localStorage, respects system preference
   - IPC client ready for Electron main process integration
+- Bloqueadores: Ninguno
+
+### Sesión 9 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 11 (UI Data Components) mayormente completada:
+    - `DeviceList.tsx` - Device list with collapsible items, context menu, icons
+    - `MappingList.tsx` - Virtualized table with @tanstack/react-table and react-virtual
+    - `MappingEditor.tsx` - Properties panel with sections for all mapping properties
+    - Refactored `App.tsx` to use new components
+  - ✅ Added dependencies:
+    - @tanstack/react-table for data table
+    - @tanstack/react-virtual for virtualization (handles 1000+ mappings)
+  - ✅ 406 tests still passing
+  - ✅ Build successful (832KB bundle)
+- Notas:
+  - DeviceList has context menu for rename/duplicate/delete
+  - MappingList supports column sorting and multi-select
+  - MappingEditor shows summary for multiple selections
+  - Virtualization ensures smooth performance with large TSI files
 - Bloqueadores: Ninguno
 
 <!-- Agregar más sesiones según avance el proyecto -->

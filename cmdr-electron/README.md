@@ -115,13 +115,16 @@ Electron + React application. **Builds successfully.**
   - `Button` with CVA variants
   - 3-panel layout (devices, mappings, properties)
   - Toolbar and status bar
+- **Data Components (Phase 11):**
+  - `DeviceList` - Collapsible list with context menu
+  - `MappingList` - Virtualized table with sorting
+  - `MappingEditor` - Properties panel for selected mappings
 
 **Pending:**
-- DeviceList component with context menu
-- MappingList DataTable with sorting/filtering
-- Property editors
+- Property editing (actual value changes)
 - File tabs for multiple files
 - Drag & drop reordering
+- Search and filtering
 
 ## Development
 
