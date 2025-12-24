@@ -12,18 +12,34 @@
  *
  * IMPORTANT: We store high-level Device models (not raw DeviceData) for easier UI access.
  * The original TsiFile is also kept for serialization.
+ *
+ * Phase 14 additions:
+ * - Clipboard operations (copy/paste mappings)
+ * - Duplicate mappings
+ * - Delete mappings
+ * - Move mappings between devices
+ *
+ * Phase 14.5 additions:
+ * - Undo/Redo system with history per file
+ * - All mapping operations are undoable
  */
 
 import {
 	Device,
-	type Mapping,
+	Mapping,
 	type MappingControlType,
+	type MappingData,
 	type MappingInteractionMode,
 	type MappingTargetDeck,
 	type TsiFile,
 } from "@cmdr/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
+import {
+	type MappingSnapshot,
+	type UndoableAction,
+	useHistoryStore,
+} from "./historyStore";
 
 // ============================================================================
 // Types
@@ -69,10 +85,26 @@ export interface OpenFile {
 	selectedMappingIds: Set<number>;
 }
 
+/**
+ * Clipboard data for copy/paste operations
+ * AIDEV-NOTE: We store raw MappingData for clipboard to preserve all settings
+ */
+export interface ClipboardData {
+	/** Raw mapping data (deep copied) */
+	mappings: MappingData[];
+	/** Source file ID (for reference) */
+	sourceFileId: string;
+	/** Source device index */
+	sourceDeviceIndex: number;
+}
+
 interface TsiState {
 	// Open files
 	openFiles: Map<string, OpenFile>;
 	activeFileId: string | null;
+
+	// Clipboard
+	clipboard: ClipboardData | null;
 
 	// Actions - File operations
 	openFile: (filePath: string, tsiFile: TsiFile) => string;
@@ -108,6 +140,25 @@ interface TsiState {
 		updates: MappingUpdate,
 	) => void;
 
+	// Actions - Clipboard operations (Phase 14)
+	copyMappings: (fileId: string) => void;
+	cutMappings: (fileId: string) => void;
+	pasteMappings: (fileId: string, afterIndex?: number) => void;
+	canPaste: () => boolean;
+
+	// Actions - Mapping manipulation (Phase 14)
+	duplicateMappings: (fileId: string) => void;
+	deleteMappings: (fileId: string, mappingIds?: number[]) => void;
+	moveMappingsToDevice: (
+		fileId: string,
+		targetDeviceIndex: number,
+		mappingIds?: number[],
+	) => void;
+
+	// Actions - Undo/Redo (Phase 14.5)
+	undo: (fileId: string) => void;
+	redo: (fileId: string) => void;
+
 	// Getters (computed from state)
 	getActiveFile: () => OpenFile | null;
 	getFile: (fileId: string) => OpenFile | null;
@@ -136,6 +187,68 @@ function getDisplayName(filePath: string | null): string {
  */
 function createDeviceModels(tsiFile: TsiFile): Device[] {
 	return tsiFile.devices.map((deviceData) => Device.fromRawData(deviceData));
+}
+
+/**
+ * Deep copy MappingData for clipboard operations
+ * AIDEV-NOTE: Must copy Uint8Array fields to avoid shared references
+ */
+function deepCopyMappingData(data: MappingData): MappingData {
+	return {
+		midiNoteBindingId: -1, // Reset binding ID for copied mappings
+		type: data.type,
+		traktorControlId: data.traktorControlId,
+		settings: {
+			...data.settings,
+			setValueTo: new Uint8Array(data.settings.setValueTo),
+			conditionOneValue: new Uint8Array(data.settings.conditionOneValue),
+			conditionTwoValue: new Uint8Array(data.settings.conditionTwoValue),
+			ledMinControllerRange: new Uint8Array(
+				data.settings.ledMinControllerRange,
+			),
+			ledMaxControllerRange: new Uint8Array(
+				data.settings.ledMaxControllerRange,
+			),
+		},
+	};
+}
+
+/**
+ * Deep copy MappingData preserving the original binding ID
+ * AIDEV-NOTE: Used for undo/redo snapshots where we want exact restoration
+ */
+function deepCopyMappingDataPreserveId(data: MappingData): MappingData {
+	return {
+		midiNoteBindingId: data.midiNoteBindingId,
+		type: data.type,
+		traktorControlId: data.traktorControlId,
+		settings: {
+			...data.settings,
+			setValueTo: new Uint8Array(data.settings.setValueTo),
+			conditionOneValue: new Uint8Array(data.settings.conditionOneValue),
+			conditionTwoValue: new Uint8Array(data.settings.conditionTwoValue),
+			ledMinControllerRange: new Uint8Array(
+				data.settings.ledMinControllerRange,
+			),
+			ledMaxControllerRange: new Uint8Array(
+				data.settings.ledMaxControllerRange,
+			),
+		},
+	};
+}
+
+/**
+ * Create a snapshot of a mapping at a specific index
+ */
+function createMappingSnapshot(
+	mapping: Mapping,
+	index: number,
+): MappingSnapshot {
+	return {
+		id: mapping.id,
+		index,
+		data: deepCopyMappingDataPreserveId(mapping.rawData),
+	};
 }
 
 /**
@@ -192,6 +305,7 @@ export const useTsiStore = create<TsiState>()(
 		// Initial state
 		openFiles: new Map(),
 		activeFileId: null,
+		clipboard: null,
 
 		// ========================================================================
 		// File Operations
@@ -226,6 +340,9 @@ export const useTsiStore = create<TsiState>()(
 		},
 
 		closeFile: (fileId) => {
+			// Clear history for this file
+			useHistoryStore.getState().clearHistory(fileId);
+
 			set((state) => {
 				const newFiles = new Map(state.openFiles);
 				newFiles.delete(fileId);
@@ -420,48 +537,589 @@ export const useTsiStore = create<TsiState>()(
 		// ========================================================================
 
 		updateMapping: (fileId, mappingId, updates) => {
-			set((state) => {
-				const file = state.openFiles.get(fileId);
-				if (!file || file.selectedDeviceIndex === null) return state;
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
 
-				const device = file.devices[file.selectedDeviceIndex];
-				if (!device) return state;
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
 
-				// Find the mapping
-				const mapping = device.mappings.find((m) => m.id === mappingId);
-				if (!mapping) return state;
+			// Find the mapping and its index
+			let mappingIndex = -1;
+			const mapping = device.mappings.find((m, i) => {
+				if (m.id === mappingId) {
+					mappingIndex = i;
+					return true;
+				}
+				return false;
+			});
+			if (!mapping || mappingIndex === -1) return;
 
-				// Apply updates using the Mapping setters
-				applyMappingUpdates(mapping, updates);
+			// Create snapshot before modification
+			const beforeSnapshot = createMappingSnapshot(mapping, mappingIndex);
 
-				// Mark file as dirty and trigger re-render
-				const newFiles = new Map(state.openFiles);
-				newFiles.set(fileId, { ...file, isDirty: true });
+			// Apply updates using the Mapping setters
+			applyMappingUpdates(mapping, updates);
+
+			// Create snapshot after modification
+			const afterSnapshot = createMappingSnapshot(mapping, mappingIndex);
+
+			// Record action in history
+			const action: UndoableAction = {
+				type: "UPDATE_MAPPING",
+				description: "Edit mapping",
+				deviceIndex: file.selectedDeviceIndex,
+				before: { mappings: [beforeSnapshot] },
+				after: { mappings: [afterSnapshot] },
+				timestamp: Date.now(),
+			};
+			useHistoryStore.getState().pushAction(fileId, action);
+
+			// Mark file as dirty and trigger re-render
+			set((currentState) => {
+				const newFiles = new Map(currentState.openFiles);
+				const currentFile = newFiles.get(fileId);
+				if (currentFile) {
+					newFiles.set(fileId, { ...currentFile, isDirty: true });
+				}
 				return { openFiles: newFiles };
 			});
 		},
 
 		updateMappings: (fileId, mappingIds, updates) => {
-			set((state) => {
-				const file = state.openFiles.get(fileId);
-				if (!file || file.selectedDeviceIndex === null) return state;
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
 
-				const device = file.devices[file.selectedDeviceIndex];
-				if (!device) return state;
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
 
-				// Find all mappings and apply updates
-				const mappingIdSet = new Set(mappingIds);
-				for (const mapping of device.mappings) {
-					if (mappingIdSet.has(mapping.id)) {
-						applyMappingUpdates(mapping, updates);
-					}
+			// Find all mappings and create snapshots before modification
+			const mappingIdSet = new Set(mappingIds);
+			const beforeSnapshots: MappingSnapshot[] = [];
+			const mappingsToUpdate: { mapping: Mapping; index: number }[] = [];
+
+			device.mappings.forEach((mapping, index) => {
+				if (mappingIdSet.has(mapping.id)) {
+					beforeSnapshots.push(createMappingSnapshot(mapping, index));
+					mappingsToUpdate.push({ mapping, index });
 				}
+			});
 
-				// Mark file as dirty and trigger re-render
-				const newFiles = new Map(state.openFiles);
-				newFiles.set(fileId, { ...file, isDirty: true });
+			if (mappingsToUpdate.length === 0) return;
+
+			// Apply updates to all mappings
+			for (const { mapping } of mappingsToUpdate) {
+				applyMappingUpdates(mapping, updates);
+			}
+
+			// Create snapshots after modification
+			const afterSnapshots: MappingSnapshot[] = mappingsToUpdate.map(
+				({ mapping, index }) => createMappingSnapshot(mapping, index),
+			);
+
+			// Record action in history
+			const action: UndoableAction = {
+				type: "UPDATE_MAPPINGS",
+				description: `Edit ${mappingsToUpdate.length} mappings`,
+				deviceIndex: file.selectedDeviceIndex,
+				before: { mappings: beforeSnapshots },
+				after: { mappings: afterSnapshots },
+				timestamp: Date.now(),
+			};
+			useHistoryStore.getState().pushAction(fileId, action);
+
+			// Mark file as dirty and trigger re-render
+			set((currentState) => {
+				const newFiles = new Map(currentState.openFiles);
+				const currentFile = newFiles.get(fileId);
+				if (currentFile) {
+					newFiles.set(fileId, { ...currentFile, isDirty: true });
+				}
 				return { openFiles: newFiles };
 			});
+		},
+
+		// ========================================================================
+		// Clipboard Operations (Phase 14)
+		// ========================================================================
+
+		copyMappings: (fileId) => {
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
+
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
+
+			// Get selected mappings in order
+			const selectedMappings = device.mappings.filter((m) =>
+				file.selectedMappingIds.has(m.id),
+			);
+			if (selectedMappings.length === 0) return;
+
+			// Deep copy the raw mapping data
+			const copiedMappings = selectedMappings.map((m) =>
+				deepCopyMappingData(m.rawData),
+			);
+
+			set({
+				clipboard: {
+					mappings: copiedMappings,
+					sourceFileId: fileId,
+					sourceDeviceIndex: file.selectedDeviceIndex,
+				},
+			});
+		},
+
+		cutMappings: (fileId) => {
+			// Copy first, then delete
+			get().copyMappings(fileId);
+			get().deleteMappings(fileId);
+		},
+
+		pasteMappings: (fileId, afterIndex) => {
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
+			if (!state.clipboard || state.clipboard.mappings.length === 0) return;
+
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
+
+			// Determine insertion index
+			let insertIndex: number;
+			if (afterIndex !== undefined) {
+				insertIndex = afterIndex + 1;
+			} else if (file.selectedMappingIds.size > 0) {
+				// Insert after last selected mapping
+				const selectedIndices: number[] = [];
+				device.mappings.forEach((m, i) => {
+					if (file.selectedMappingIds.has(m.id)) {
+						selectedIndices.push(i);
+					}
+				});
+				insertIndex =
+					selectedIndices.length > 0
+						? Math.max(...selectedIndices) + 1
+						: device.mappingCount;
+			} else {
+				// Append at end
+				insertIndex = device.mappingCount;
+			}
+
+			// Create new mappings from clipboard data and insert them
+			const newMappingIds: number[] = [];
+			const afterSnapshots: MappingSnapshot[] = [];
+
+			for (let i = 0; i < state.clipboard.mappings.length; i++) {
+				const clipData = state.clipboard.mappings[i];
+				if (!clipData) continue;
+
+				const copiedData = deepCopyMappingData(clipData);
+				const newMapping = Mapping.fromRawData(copiedData);
+				device.insertMapping(insertIndex + i, newMapping);
+				newMappingIds.push(newMapping.id);
+
+				// Snapshot after insertion
+				afterSnapshots.push(createMappingSnapshot(newMapping, insertIndex + i));
+			}
+
+			// Record action in history
+			const action: UndoableAction = {
+				type: "PASTE_MAPPINGS",
+				description: `Paste ${newMappingIds.length} mapping${newMappingIds.length > 1 ? "s" : ""}`,
+				deviceIndex: file.selectedDeviceIndex,
+				before: {
+					mappings: [],
+					selectedMappingIds: Array.from(file.selectedMappingIds),
+				},
+				after: {
+					mappings: afterSnapshots,
+					createdIds: newMappingIds,
+					selectedMappingIds: newMappingIds,
+				},
+				timestamp: Date.now(),
+			};
+			useHistoryStore.getState().pushAction(fileId, action);
+
+			// Update state: mark dirty and select pasted mappings
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedMappingIds: new Set(newMappingIds),
+			});
+			set({ openFiles: newFiles });
+		},
+
+		canPaste: () => {
+			const state = get();
+			return state.clipboard !== null && state.clipboard.mappings.length > 0;
+		},
+
+		// ========================================================================
+		// Mapping Manipulation (Phase 14)
+		// ========================================================================
+
+		duplicateMappings: (fileId) => {
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
+
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
+
+			// Get selected mappings in order
+			const selectedMappings: { mapping: Mapping; index: number }[] = [];
+			device.mappings.forEach((m, i) => {
+				if (file.selectedMappingIds.has(m.id)) {
+					selectedMappings.push({ mapping: m, index: i });
+				}
+			});
+			if (selectedMappings.length === 0) return;
+
+			// Find insertion point (after last selected)
+			const lastIndex = Math.max(...selectedMappings.map((s) => s.index));
+
+			// Create copies and insert after selection
+			const newMappingIds: number[] = [];
+			const afterSnapshots: MappingSnapshot[] = [];
+
+			for (let i = 0; i < selectedMappings.length; i++) {
+				const { mapping } = selectedMappings[i] ?? {};
+				if (!mapping) continue;
+
+				const copy = mapping.copy(false); // Don't copy MIDI binding
+				device.insertMapping(lastIndex + 1 + i, copy);
+				newMappingIds.push(copy.id);
+
+				// Snapshot after insertion
+				afterSnapshots.push(createMappingSnapshot(copy, lastIndex + 1 + i));
+			}
+
+			// Record action in history
+			const action: UndoableAction = {
+				type: "DUPLICATE_MAPPINGS",
+				description: `Duplicate ${newMappingIds.length} mapping${newMappingIds.length > 1 ? "s" : ""}`,
+				deviceIndex: file.selectedDeviceIndex,
+				before: {
+					mappings: [],
+					selectedMappingIds: Array.from(file.selectedMappingIds),
+				},
+				after: {
+					mappings: afterSnapshots,
+					createdIds: newMappingIds,
+					selectedMappingIds: newMappingIds,
+				},
+				timestamp: Date.now(),
+			};
+			useHistoryStore.getState().pushAction(fileId, action);
+
+			// Update state: mark dirty and select duplicated mappings
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedMappingIds: new Set(newMappingIds),
+			});
+			set({ openFiles: newFiles });
+		},
+
+		deleteMappings: (fileId, mappingIds) => {
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
+
+			const device = file.devices[file.selectedDeviceIndex];
+			if (!device) return;
+
+			// Use provided IDs or selected IDs
+			const idsToDelete = mappingIds
+				? new Set(mappingIds)
+				: file.selectedMappingIds;
+			if (idsToDelete.size === 0) return;
+
+			// Collect mappings to delete with their snapshots (for undo)
+			const beforeSnapshots: MappingSnapshot[] = [];
+			const indicesToRemove: number[] = [];
+			const deletedIds: number[] = [];
+
+			device.mappings.forEach((m, i) => {
+				if (idsToDelete.has(m.id)) {
+					beforeSnapshots.push(createMappingSnapshot(m, i));
+					indicesToRemove.push(i);
+					deletedIds.push(m.id);
+				}
+			});
+
+			// Record action in history BEFORE deletion (need the data)
+			const action: UndoableAction = {
+				type: "DELETE_MAPPINGS",
+				description: `Delete ${deletedIds.length} mapping${deletedIds.length > 1 ? "s" : ""}`,
+				deviceIndex: file.selectedDeviceIndex,
+				before: {
+					mappings: beforeSnapshots,
+					selectedMappingIds: Array.from(file.selectedMappingIds),
+				},
+				after: {
+					mappings: [],
+					deletedIds,
+					selectedMappingIds: [],
+				},
+				timestamp: Date.now(),
+			};
+			useHistoryStore.getState().pushAction(fileId, action);
+
+			// Remove from highest index first
+			indicesToRemove.sort((a, b) => b - a);
+			for (const index of indicesToRemove) {
+				device.removeMappingAt(index);
+			}
+
+			// Update state: mark dirty and clear selection
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedMappingIds: new Set(),
+			});
+			set({ openFiles: newFiles });
+		},
+
+		moveMappingsToDevice: (fileId, targetDeviceIndex, mappingIds) => {
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file || file.selectedDeviceIndex === null) return;
+			if (targetDeviceIndex === file.selectedDeviceIndex) return; // Same device
+
+			const sourceDevice = file.devices[file.selectedDeviceIndex];
+			const targetDevice = file.devices[targetDeviceIndex];
+			if (!sourceDevice || !targetDevice) return;
+
+			// Use provided IDs or selected IDs
+			const idsToMove = mappingIds
+				? new Set(mappingIds)
+				: file.selectedMappingIds;
+			if (idsToMove.size === 0) return;
+
+			// Collect mappings to move (in order)
+			const mappingsToMove: { mapping: Mapping; index: number }[] = [];
+			sourceDevice.mappings.forEach((m, i) => {
+				if (idsToMove.has(m.id)) {
+					mappingsToMove.push({ mapping: m, index: i });
+				}
+			});
+
+			// Copy mappings to target device (without MIDI bindings)
+			const newMappingIds: number[] = [];
+			for (const { mapping } of mappingsToMove) {
+				const copy = mapping.copy(false);
+				targetDevice.addMapping(copy);
+				newMappingIds.push(copy.id);
+			}
+
+			// Remove from source device (reverse order)
+			const indicesToRemove = mappingsToMove.map((m) => m.index);
+			indicesToRemove.sort((a, b) => b - a);
+			for (const index of indicesToRemove) {
+				sourceDevice.removeMappingAt(index);
+			}
+
+			// Update state: mark dirty, switch to target device, select moved mappings
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedDeviceIndex: targetDeviceIndex,
+				selectedMappingIds: new Set(newMappingIds),
+			});
+			set({ openFiles: newFiles });
+		},
+
+		// ========================================================================
+		// Undo/Redo (Phase 14.5)
+		// ========================================================================
+
+		undo: (fileId) => {
+			const historyStore = useHistoryStore.getState();
+			const action = historyStore.popUndo(fileId);
+			if (!action) return;
+
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file) return;
+
+			const device = file.devices[action.deviceIndex];
+			if (!device) return;
+
+			// AIDEV-NOTE: Undo logic depends on action type
+			// For actions that created mappings (paste, duplicate): delete them
+			// For actions that deleted mappings: restore them
+			// For actions that modified mappings: restore previous state
+
+			switch (action.type) {
+				case "UPDATE_MAPPING":
+				case "UPDATE_MAPPINGS": {
+					// Restore mappings to their previous state
+					for (const snapshot of action.before.mappings) {
+						const mapping = device.mappings.find((m) => m.id === snapshot.id);
+						if (mapping) {
+							// Replace the raw data with the snapshot data
+							Object.assign(
+								mapping.rawData,
+								deepCopyMappingDataPreserveId(snapshot.data),
+							);
+						}
+					}
+					break;
+				}
+
+				case "PASTE_MAPPINGS":
+				case "DUPLICATE_MAPPINGS": {
+					// Remove the created mappings
+					const createdIds = action.after.createdIds ?? [];
+					if (createdIds.length > 0) {
+						const indicesToRemove: number[] = [];
+						device.mappings.forEach((m, i) => {
+							if (createdIds.includes(m.id)) {
+								indicesToRemove.push(i);
+							}
+						});
+						// Remove from highest index first
+						indicesToRemove.sort((a, b) => b - a);
+						for (const index of indicesToRemove) {
+							device.removeMappingAt(index);
+						}
+					}
+					break;
+				}
+
+				case "DELETE_MAPPINGS":
+				case "CUT_MAPPINGS": {
+					// Restore the deleted mappings at their original positions
+					// Sort by index to insert in correct order
+					const sortedSnapshots = [...action.before.mappings].sort(
+						(a, b) => a.index - b.index,
+					);
+					for (const snapshot of sortedSnapshots) {
+						const restoredMapping = Mapping.fromRawData(
+							deepCopyMappingDataPreserveId(snapshot.data),
+						);
+						device.insertMapping(snapshot.index, restoredMapping);
+					}
+					break;
+				}
+
+				case "MOVE_MAPPINGS": {
+					// AIDEV-TODO: Implement move undo (complex - involves two devices)
+					console.warn("Undo for MOVE_MAPPINGS not yet implemented");
+					break;
+				}
+			}
+
+			// Restore selection if available
+			const newSelection = action.before.selectedMappingIds
+				? new Set(action.before.selectedMappingIds)
+				: new Set<number>();
+
+			// Update state
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedMappingIds: newSelection,
+			});
+			set({ openFiles: newFiles });
+		},
+
+		redo: (fileId) => {
+			const historyStore = useHistoryStore.getState();
+			const action = historyStore.popRedo(fileId);
+			if (!action) return;
+
+			const state = get();
+			const file = state.openFiles.get(fileId);
+			if (!file) return;
+
+			const device = file.devices[action.deviceIndex];
+			if (!device) return;
+
+			// AIDEV-NOTE: Redo re-applies the action
+			// For actions that created mappings: re-create them
+			// For actions that deleted mappings: delete them again
+			// For actions that modified mappings: apply the after state
+
+			switch (action.type) {
+				case "UPDATE_MAPPING":
+				case "UPDATE_MAPPINGS": {
+					// Apply the "after" state to mappings
+					for (const snapshot of action.after.mappings) {
+						const mapping = device.mappings.find((m) => m.id === snapshot.id);
+						if (mapping) {
+							Object.assign(
+								mapping.rawData,
+								deepCopyMappingDataPreserveId(snapshot.data),
+							);
+						}
+					}
+					break;
+				}
+
+				case "PASTE_MAPPINGS":
+				case "DUPLICATE_MAPPINGS": {
+					// Re-create the mappings at their positions
+					const sortedSnapshots = [...action.after.mappings].sort(
+						(a, b) => a.index - b.index,
+					);
+					for (const snapshot of sortedSnapshots) {
+						const newMapping = Mapping.fromRawData(
+							deepCopyMappingDataPreserveId(snapshot.data),
+						);
+						device.insertMapping(snapshot.index, newMapping);
+					}
+					break;
+				}
+
+				case "DELETE_MAPPINGS":
+				case "CUT_MAPPINGS": {
+					// Delete the mappings again
+					const deletedIds = action.after.deletedIds ?? [];
+					if (deletedIds.length > 0) {
+						const indicesToRemove: number[] = [];
+						device.mappings.forEach((m, i) => {
+							if (deletedIds.includes(m.id)) {
+								indicesToRemove.push(i);
+							}
+						});
+						indicesToRemove.sort((a, b) => b - a);
+						for (const index of indicesToRemove) {
+							device.removeMappingAt(index);
+						}
+					}
+					break;
+				}
+
+				case "MOVE_MAPPINGS": {
+					// AIDEV-TODO: Implement move redo
+					console.warn("Redo for MOVE_MAPPINGS not yet implemented");
+					break;
+				}
+			}
+
+			// Restore selection if available
+			const newSelection = action.after.selectedMappingIds
+				? new Set(action.after.selectedMappingIds)
+				: new Set<number>();
+
+			// Update state
+			const newFiles = new Map(state.openFiles);
+			newFiles.set(fileId, {
+				...file,
+				isDirty: true,
+				selectedMappingIds: newSelection,
+			});
+			set({ openFiles: newFiles });
 		},
 
 		// ========================================================================
@@ -526,4 +1184,26 @@ export function useHasDirtyFiles(): boolean {
 	return useTsiStore((state) =>
 		Array.from(state.openFiles.values()).some((f) => f.isDirty),
 	);
+}
+
+/**
+ * Hook to check if clipboard has content
+ */
+export function useCanPaste(): boolean {
+	return useTsiStore(
+		(state) => state.clipboard !== null && state.clipboard.mappings.length > 0,
+	);
+}
+
+/**
+ * Hook to get clipboard info
+ */
+export function useClipboardInfo(): {
+	hasContent: boolean;
+	mappingCount: number;
+} {
+	return useTsiStore((state) => ({
+		hasContent: state.clipboard !== null && state.clipboard.mappings.length > 0,
+		mappingCount: state.clipboard?.mappings.length ?? 0,
+	}));
 }

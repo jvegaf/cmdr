@@ -890,54 +890,88 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 14: UI - Edición Avanzada
+## Fase 14: UI - Edición Avanzada ✅ (mostly)
 
-### 14.1 Copy/Paste
+### 14.1 Copy/Paste ✅
 
-- [ ] Implementar copy mappings
-- [ ] Implementar paste mappings
-- [ ] Soporte para múltiples mappings
-- [ ] Usar clipboard del sistema
+- [x] Implementar copy mappings
+- [x] Implementar cut mappings
+- [x] Implementar paste mappings
+- [x] Soporte para múltiples mappings
+- [x] Usar clipboard interno (ClipboardData en store)
 - [ ] **Tests:**
   - [ ] Test copy/paste single
   - [ ] Test copy/paste múltiple
 
-### 14.2 Duplicate
+### 14.2 Duplicate ✅
 
-- [ ] Implementar duplicar mapping(s)
-- [ ] Insertar después de selección
-- [ ] Generar nuevos IDs
+- [x] Implementar duplicar mapping(s)
+- [x] Insertar después de selección
+- [x] Generar nuevos IDs (new binding IDs)
 - [ ] **Tests:**
   - [ ] Test duplicar
 
-### 14.3 Delete
+### 14.3 Delete ✅
 
-- [ ] Implementar eliminar mapping(s)
-- [ ] Confirmación para múltiples
+- [x] Implementar eliminar mapping(s)
+- [x] Keyboard shortcut (Delete/Backspace)
+- [ ] Confirmación para múltiples (optional - skipped)
 - [ ] **Tests:**
   - [ ] Test eliminar
 
-### 14.4 Move Between Devices
+### 14.4 Move Between Devices ✅
 
-- [ ] Implementar mover mappings entre devices
-- [ ] Drag & drop entre listas
-- [ ] O menú "Move to..."
+- [x] Implementar mover mappings entre devices
+- [x] Función moveMappingsToDevice en store
+- [ ] UI: Drag & drop entre listas (pendiente)
+- [ ] UI: Menú "Move to..." (pendiente)
 - [ ] **Tests:**
   - [ ] Test mover mappings
 
-### 14.5 Undo/Redo
+### 14.5 Undo/Redo ✅
 
-- [ ] Implementar sistema de undo/redo
-- [ ] Usar zustand middleware o custom
-- [ ] Acciones undoable:
-  - [ ] Crear/eliminar mapping
-  - [ ] Modificar mapping
-  - [ ] Reordenar
-  - [ ] Crear/eliminar device
+- [x] Implementar sistema de undo/redo
+- [x] Usar custom historyStore (Command pattern)
+- [x] Acciones undoable:
+  - [x] Modificar mapping (single y batch)
+  - [x] Delete mappings
+  - [x] Paste mappings
+  - [x] Duplicate mappings
+  - [x] Cut mappings (via copy + delete)
+  - [ ] Crear/eliminar device (AIDEV-TODO)
+  - [ ] Move mappings between devices (AIDEV-TODO)
+- [x] historyStore con:
+  - [x] Per-file history stacks
+  - [x] Max 50 actions per file
+  - [x] Clear history on file close
+  - [x] Undo/Redo descriptions
+- [x] UI Integration:
+  - [x] Ctrl+Z: Undo
+  - [x] Ctrl+Y/Ctrl+Shift+Z: Redo
+  - [x] Undo/Redo toolbar buttons
+  - [x] Tooltips with action descriptions
 - [ ] **Tests:**
   - [ ] Test undo
   - [ ] Test redo
   - [ ] Test límite de history
+
+### 14.6 Keyboard Shortcuts ✅ (NEW)
+
+- [x] Hook useKeyboardShortcuts
+- [x] Ctrl+C: Copy
+- [x] Ctrl+X: Cut
+- [x] Ctrl+V: Paste
+- [x] Ctrl+D: Duplicate
+- [x] Delete/Backspace: Delete
+- [x] Ctrl+A: Select all
+- [x] Escape: Clear selection
+- [x] Ctrl+N/O/S: File operations
+
+### 14.7 Edit Toolbar ✅ (NEW)
+
+- [x] Copy/Cut/Paste/Duplicate/Delete buttons
+- [x] Tooltips with keyboard shortcuts
+- [x] Disabled states based on selection
 
 ---
 

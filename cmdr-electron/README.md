@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 10 Complete - UI Infrastructure with theme system, Zustand stores, and IPC client
+> **Status:** Phase 14.5 Complete - Full Advanced Editing with Undo/Redo System
 
 ## Project Structure
 
@@ -108,6 +108,7 @@ Electron + React application. **Builds successfully.**
 - **Zustand Stores:**
   - `useTsiStore` - TSI file state with multi-select support
   - `useMidiStore` - MIDI device state and MIDI Learn
+  - `useHistoryStore` - Undo/Redo history management (Phase 14.5)
 - **IPC Client:**
   - Type-safe Electron IPC wrapper
   - Base64 encoding for binary file transfer
@@ -119,12 +120,38 @@ Electron + React application. **Builds successfully.**
   - `DeviceList` - Collapsible list with context menu
   - `MappingList` - Virtualized table with sorting
   - `MappingEditor` - Properties panel for selected mappings
+- **Property Editing (Phase 12):**
+  - `CommandSelector` - Hierarchical command picker
+  - `ConditionSelector` - Condition picker with value editors
+  - `MidiBindingEditor` - MIDI Learn integration
+- **File Operations (Phase 13):**
+  - `FileTabs` - Multiple file tabs with dirty indicators
+  - New/Open/Save/Save As file operations
+  - Recent files list
+  - Unsaved changes confirmation dialog
+- **Advanced Editing (Phase 14):**
+  - Copy/Cut/Paste/Duplicate/Delete mappings
+  - Internal clipboard
+  - Move mappings between devices
+  - Edit toolbar with icons
+- **Undo/Redo System (Phase 14.5):**
+  - Per-file history stacks (max 50 actions)
+  - Undoable operations: edit, delete, paste, duplicate, cut
+  - Ctrl+Z / Ctrl+Y keyboard shortcuts
+  - Undo/Redo toolbar buttons with action descriptions
+- **Keyboard Shortcuts:**
+  - Ctrl+N/O/S: File operations
+  - Ctrl+C/X/V/D: Clipboard operations
+  - Ctrl+Z/Y: Undo/Redo
+  - Ctrl+A: Select all
+  - Delete/Backspace: Delete selected
+  - Escape: Clear selection
 
 **Pending:**
-- Property editing (actual value changes)
-- File tabs for multiple files
+- Search and filtering (Phase 15)
+- Reports and export (Phase 16)
 - Drag & drop reordering
-- Search and filtering
+- Context menus
 
 ## Development
 
@@ -294,7 +321,12 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | 8. High-Level Models | ✅ Complete | Device, Mapping classes with full API |
 | 9. MIDI Integration | ✅ Complete | MidiManager, MidiMessage, binding utilities |
 | 10. UI Infrastructure | ✅ Complete | Theme, stores, IPC client, layout |
-| 11-21. UI Components & More | ⏳ Pending | Data components, editors, packaging |
+| 11. Data Components | ✅ Complete | DeviceList, MappingList, MappingEditor |
+| 12. Property Editors | ✅ Complete | CommandSelector, ConditionSelector, MidiBindingEditor |
+| 13. File Operations | ✅ Complete | Tabs, New/Save/Close, Recent Files |
+| 14. Advanced Editing | ✅ Complete | Copy/Paste/Duplicate/Delete, Keyboard Shortcuts |
+| 14.5 Undo/Redo | ✅ Complete | Per-file history, undoable operations |
+| 15-21. Search & More | ⏳ Pending | Search, Reports, Packaging |
 
 ### Test Summary
 

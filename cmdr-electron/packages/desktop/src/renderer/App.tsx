@@ -9,10 +9,28 @@
  * - New File functionality
  * - Save/Save As with dirty state handling
  * - Close file with unsaved changes confirmation
+ *
+ * Phase 14 additions:
+ * - Keyboard shortcuts for copy/cut/paste/duplicate/delete
+ * - Edit toolbar buttons
+ * - Clipboard operations
  */
 
 import { type Device, type Mapping, TsiFile } from "@cmdr/core";
-import { Clock, FilePlus, FolderOpen, Save, SaveAll } from "lucide-react";
+import {
+	ClipboardCopy,
+	ClipboardPaste,
+	Clock,
+	Copy,
+	FilePlus,
+	FolderOpen,
+	Redo2,
+	Save,
+	SaveAll,
+	Scissors,
+	Trash2,
+	Undo2,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DeviceList } from "./components/devices";
@@ -22,11 +40,14 @@ import { FileTabs } from "./components/files";
 import { MappingList } from "./components/mappings";
 import { ThemeProvider, ThemeToggle } from "./components/theme";
 import { Button } from "./components/ui";
+import { SHORTCUTS, useKeyboardShortcuts } from "./hooks";
 import { ipcClient } from "./lib/ipc-client";
 import { useAppStore, useRecentFiles } from "./store/appStore";
+import { useHistoryInfo } from "./store/historyStore";
 import { useMidiStore } from "./store/midiStore";
 import {
 	useActiveFile,
+	useCanPaste,
 	useOpenFiles,
 	useTsiStore,
 } from "./store/tsiStore";
@@ -42,6 +63,8 @@ function AppLayout() {
 	const activeFile = useActiveFile();
 	const openFiles = useOpenFiles();
 	const recentFiles = useRecentFiles();
+	const canPaste = useCanPaste();
+	const historyInfo = useHistoryInfo(activeFile?.id ?? null);
 	const addRecentFile = useAppStore((s) => s.addRecentFile);
 	const {
 		openFile,
@@ -51,6 +74,15 @@ function AppLayout() {
 		selectMappings,
 		markClean,
 		updateFilePath,
+		// Phase 14: Edit operations
+		copyMappings,
+		cutMappings,
+		pasteMappings,
+		duplicateMappings,
+		deleteMappings,
+		// Phase 14.5: Undo/Redo
+		undo,
+		redo,
 	} = useTsiStore();
 	const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
 
@@ -199,6 +231,72 @@ function AppLayout() {
 	);
 
 	// ========================================================================
+	// Edit Operations (Phase 14)
+	// ========================================================================
+
+	const handleCopy = useCallback(() => {
+		if (activeFile && activeFile.selectedMappingIds.size > 0) {
+			copyMappings(activeFile.id);
+		}
+	}, [activeFile, copyMappings]);
+
+	const handleCut = useCallback(() => {
+		if (activeFile && activeFile.selectedMappingIds.size > 0) {
+			cutMappings(activeFile.id);
+		}
+	}, [activeFile, cutMappings]);
+
+	const handlePaste = useCallback(() => {
+		if (activeFile && canPaste) {
+			pasteMappings(activeFile.id);
+		}
+	}, [activeFile, canPaste, pasteMappings]);
+
+	const handleDuplicate = useCallback(() => {
+		if (activeFile && activeFile.selectedMappingIds.size > 0) {
+			duplicateMappings(activeFile.id);
+		}
+	}, [activeFile, duplicateMappings]);
+
+	const handleDelete = useCallback(() => {
+		if (activeFile && activeFile.selectedMappingIds.size > 0) {
+			deleteMappings(activeFile.id);
+		}
+	}, [activeFile, deleteMappings]);
+
+	// Phase 14.5: Undo/Redo handlers
+	const handleUndo = useCallback(() => {
+		if (activeFile && historyInfo.canUndo) {
+			undo(activeFile.id);
+		}
+	}, [activeFile, historyInfo.canUndo, undo]);
+
+	const handleRedo = useCallback(() => {
+		if (activeFile && historyInfo.canRedo) {
+			redo(activeFile.id);
+		}
+	}, [activeFile, historyInfo.canRedo, redo]);
+
+	// Enable state for edit buttons
+	const hasSelection =
+		activeFile !== null && activeFile.selectedMappingIds.size > 0;
+
+	// Keyboard shortcuts
+	useKeyboardShortcuts({
+		onNew: handleNewFile,
+		onOpen: handleOpenFile,
+		onSave: handleSaveFile,
+		onSaveAs: handleSaveAsFile,
+		onCopy: handleCopy,
+		onCut: handleCut,
+		onPaste: handlePaste,
+		onDuplicate: handleDuplicate,
+		onDelete: handleDelete,
+		onUndo: handleUndo,
+		onRedo: handleRedo,
+	});
+
+	// ========================================================================
 	// Device/Mapping Selection
 	// ========================================================================
 
@@ -248,11 +346,21 @@ function AppLayout() {
 
 					{/* File actions */}
 					<div className="ml-4 flex items-center gap-1">
-						<Button variant="ghost" size="sm" onClick={handleNewFile}>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleNewFile}
+							title={`New (${SHORTCUTS.new})`}
+						>
 							<FilePlus className="mr-2 h-4 w-4" />
 							New
 						</Button>
-						<Button variant="ghost" size="sm" onClick={handleOpenFile}>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleOpenFile}
+							title={`Open (${SHORTCUTS.open})`}
+						>
 							<FolderOpen className="mr-2 h-4 w-4" />
 							Open
 						</Button>
@@ -261,6 +369,7 @@ function AppLayout() {
 							size="sm"
 							onClick={handleSaveFile}
 							disabled={!activeFile}
+							title={`Save (${SHORTCUTS.save})`}
 						>
 							<Save className="mr-2 h-4 w-4" />
 							Save
@@ -270,9 +379,87 @@ function AppLayout() {
 							size="sm"
 							onClick={handleSaveAsFile}
 							disabled={!activeFile}
+							title={`Save As (${SHORTCUTS.saveAs})`}
 						>
 							<SaveAll className="mr-2 h-4 w-4" />
 							Save As
+						</Button>
+					</div>
+
+					{/* Separator */}
+					<div className="h-6 w-px bg-border" />
+
+					{/* Undo/Redo (Phase 14.5) */}
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleUndo}
+							disabled={!historyInfo.canUndo}
+							title={`Undo${historyInfo.undoDescription ? ` "${historyInfo.undoDescription}"` : ""} (${SHORTCUTS.undo})`}
+						>
+							<Undo2 className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleRedo}
+							disabled={!historyInfo.canRedo}
+							title={`Redo${historyInfo.redoDescription ? ` "${historyInfo.redoDescription}"` : ""} (${SHORTCUTS.redo})`}
+						>
+							<Redo2 className="h-4 w-4" />
+						</Button>
+					</div>
+
+					{/* Separator */}
+					<div className="h-6 w-px bg-border" />
+
+					{/* Edit actions (Phase 14) */}
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleCopy}
+							disabled={!hasSelection}
+							title={`Copy (${SHORTCUTS.copy})`}
+						>
+							<Copy className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleCut}
+							disabled={!hasSelection}
+							title={`Cut (${SHORTCUTS.cut})`}
+						>
+							<Scissors className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handlePaste}
+							disabled={!canPaste}
+							title={`Paste (${SHORTCUTS.paste})`}
+						>
+							<ClipboardPaste className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleDuplicate}
+							disabled={!hasSelection}
+							title={`Duplicate (${SHORTCUTS.duplicate})`}
+						>
+							<ClipboardCopy className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleDelete}
+							disabled={!hasSelection}
+							title={`Delete (${SHORTCUTS.delete})`}
+						>
+							<Trash2 className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>
