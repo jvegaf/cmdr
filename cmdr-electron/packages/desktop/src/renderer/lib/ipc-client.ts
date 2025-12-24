@@ -23,6 +23,8 @@ interface ElectronAPI {
   saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
   readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
+  // Phase 16: CSV export
+  saveCsv: (content: string, defaultPath?: string) => Promise<string | null>;
 }
 
 // ============================================================================
@@ -188,6 +190,17 @@ export const ipcClient = {
 
     // Write directly
     await api.writeFile(filePath, base64Content);
+  },
+
+  /**
+   * Save CSV content using the system save dialog
+   * @param csvContent The CSV content to save (UTF-8 string with BOM)
+   * @param defaultPath Optional default path for the save dialog
+   * @returns The saved file path, or null if cancelled
+   */
+  async saveCsvFile(csvContent: string, defaultPath?: string): Promise<string | null> {
+    const api = getElectronAPI();
+    return api.saveCsv(csvContent, defaultPath);
   },
 };
 

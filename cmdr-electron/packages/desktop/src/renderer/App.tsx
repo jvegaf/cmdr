@@ -19,16 +19,24 @@
  * - Search input for filtering mappings
  * - Filter panel with control type, conditions, MIDI filters
  * - Combined search + filter logic
+ *
+ * Phase 16 additions:
+ * - Export to CSV with column selection
+ * - Commands report (overview of commands used)
+ * - Conditions summary (overview of conditions used)
  */
 
 import { type Device, type Mapping, TsiFile } from "@cmdr/core";
 import {
+	BarChart3,
 	ClipboardCopy,
 	ClipboardPaste,
 	Clock,
 	Copy,
+	Download,
 	FilePlus,
 	FolderOpen,
+	ListChecks,
 	Redo2,
 	Save,
 	SaveAll,
@@ -40,13 +48,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { FilterPanel, SearchInput } from "./components/common";
 import { DeviceList } from "./components/devices";
-import { ConfirmDialog, useConfirmDialog } from "./components/dialogs";
+import {
+	ConfirmDialog,
+	ExportDialog,
+	useConfirmDialog,
+	useExportDialog,
+} from "./components/dialogs";
 import { MappingEditor } from "./components/editors";
 import { FileTabs } from "./components/files";
 import { MappingList } from "./components/mappings";
+import { CommandsReport, ConditionsSummary } from "./components/reports";
 import { ThemeProvider, ThemeToggle } from "./components/theme";
 import { Button } from "./components/ui";
 import { SHORTCUTS, useKeyboardShortcuts } from "./hooks";
+import {
+	exportCommandsReportToCsv,
+	exportConditionsSummaryToCsv,
+	exportToCsv,
+	generateCommandsReport,
+	generateConditionsSummary,
+} from "./lib/csv-export";
 import { ipcClient } from "./lib/ipc-client";
 import { useAppStore, useRecentFiles } from "./store/appStore";
 import { useHistoryInfo } from "./store/historyStore";
@@ -106,6 +127,10 @@ function AppLayout() {
 		null,
 	);
 
+	// Phase 16: Reports dialog state
+	const [showCommandsReport, setShowCommandsReport] = useState(false);
+	const [showConditionsSummary, setShowConditionsSummary] = useState(false);
+
 	// Confirm dialog for unsaved changes
 	const unsavedChangesDialog = useConfirmDialog({
 		title: "Unsaved Changes",
@@ -113,6 +138,12 @@ function AppLayout() {
 		confirmText: "Save",
 		cancelText: "Cancel",
 		thirdOptionText: "Don't Save",
+	});
+
+	// Phase 16: Export dialog hook
+	const exportDialog = useExportDialog({
+		mappingCount: 0, // Will be updated when used
+		selectedOnly: false,
 	});
 
 	// Initialize MIDI on mount
@@ -380,6 +411,61 @@ function AppLayout() {
 		clearFilters(activeFile.id);
 	}, [activeFile, clearFilters]);
 
+	// ========================================================================
+	// Export and Reports (Phase 16)
+	// ========================================================================
+
+	// Handle CSV export
+	const handleExportCsv = useCallback(async () => {
+		if (!activeFile) return;
+
+		// Update export dialog with current mapping count
+		const totalMappingCount = activeFile.devices.reduce(
+			(sum, d) => sum + d.mappingCount,
+			0,
+		);
+		exportDialog.updateOptions({
+			mappingCount: totalMappingCount,
+			selectedOnly: false,
+		});
+
+		const columns = await exportDialog.openDialog();
+		if (!columns) return; // User cancelled
+
+		const csvContent = exportToCsv(activeFile.devices, {
+			columns,
+			includeHeader: true,
+		});
+
+		const defaultPath = activeFile.filePath
+			? activeFile.filePath.replace(/\.tsi$/i, ".csv")
+			: "mappings.csv";
+
+		await ipcClient.saveCsvFile(csvContent, defaultPath);
+	}, [activeFile, exportDialog]);
+
+	// Show commands report
+	const handleShowCommandsReport = useCallback(() => {
+		setShowCommandsReport(true);
+	}, []);
+
+	// Show conditions summary
+	const handleShowConditionsSummary = useCallback(() => {
+		setShowConditionsSummary(true);
+	}, []);
+
+	// Commands report data
+	const commandsReportData = useMemo(() => {
+		if (!activeFile) return [];
+		return generateCommandsReport(activeFile.devices);
+	}, [activeFile]);
+
+	// Conditions summary data
+	const conditionsSummaryData = useMemo(() => {
+		if (!activeFile) return [];
+		return generateConditionsSummary(activeFile.devices);
+	}, [activeFile]);
+
 	// Filter mappings based on search query and filters
 	const filteredMappings = useMemo(() => {
 		if (!selectedDevice || !activeFile) return { filtered: [], matchingIds: new Set<number>() };
@@ -526,6 +612,41 @@ function AppLayout() {
 							title={`Delete (${SHORTCUTS.delete})`}
 						>
 							<Trash2 className="h-4 w-4" />
+						</Button>
+					</div>
+
+					{/* Separator */}
+					<div className="h-6 w-px bg-border" />
+
+					{/* Export and Reports (Phase 16) */}
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleExportCsv}
+							disabled={!activeFile}
+							title="Export to CSV"
+						>
+							<Download className="mr-2 h-4 w-4" />
+							Export
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleShowCommandsReport}
+							disabled={!activeFile}
+							title="Commands Overview"
+						>
+							<BarChart3 className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleShowConditionsSummary}
+							disabled={!activeFile}
+							title="Conditions Summary"
+						>
+							<ListChecks className="h-4 w-4" />
 						</Button>
 					</div>
 				</div>
@@ -693,6 +814,31 @@ function AppLayout() {
 
 			{/* Unsaved Changes Confirmation Dialog */}
 			<ConfirmDialog {...unsavedChangesDialog.dialogProps} />
+
+			{/* Export Dialog (Phase 16) */}
+			<ExportDialog {...exportDialog.dialogProps} />
+
+			{/* Commands Report (Phase 16) */}
+			<CommandsReport
+				open={showCommandsReport}
+				rows={commandsReportData}
+				onClose={() => setShowCommandsReport(false)}
+				onExportCsv={() => {
+					const csv = exportCommandsReportToCsv(commandsReportData);
+					ipcClient.saveCsvFile(csv, "commands-report.csv");
+				}}
+			/>
+
+			{/* Conditions Summary (Phase 16) */}
+			<ConditionsSummary
+				open={showConditionsSummary}
+				rows={conditionsSummaryData}
+				onClose={() => setShowConditionsSummary(false)}
+				onExportCsv={() => {
+					const csv = exportConditionsSummaryToCsv(conditionsSummaryData);
+					ipcClient.saveCsvFile(csv, "conditions-summary.csv");
+				}}
+			/>
 		</div>
 	);
 }

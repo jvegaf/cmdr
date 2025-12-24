@@ -17,6 +17,8 @@ export interface ElectronAPI {
   saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
   readFile: (filePath: string) => Promise<string>;
   writeFile: (filePath: string, content: string) => Promise<boolean>;
+  // Phase 16: CSV export
+  saveCsv: (content: string, defaultPath?: string) => Promise<string | null>;
 }
 
 const electronAPI: ElectronAPI = {
@@ -26,6 +28,9 @@ const electronAPI: ElectronAPI = {
   readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
   writeFile: (filePath, content) =>
     ipcRenderer.invoke('file:write', { filePath, content }),
+  // Phase 16: CSV export
+  saveCsv: (content, defaultPath) =>
+    ipcRenderer.invoke('dialog:saveCsv', { content, defaultPath }),
 };
 
 contextBridge.exposeInMainWorld('electron', electronAPI);

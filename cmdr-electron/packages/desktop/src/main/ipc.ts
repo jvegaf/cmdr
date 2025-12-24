@@ -66,4 +66,24 @@ export function registerIpcHandlers(): void {
     await writeFile(data.filePath, buffer);
     return true;
   });
+
+  // Save CSV file dialog
+  // AIDEV-NOTE: Phase 16 - CSV export functionality
+  ipcMain.handle('dialog:saveCsv', async (_event, data: { content: string; defaultPath?: string }) => {
+    const result = await dialog.showSaveDialog({
+      defaultPath: data.defaultPath,
+      filters: [
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    // Write as UTF-8 text (content already has BOM)
+    await writeFile(result.filePath, data.content, 'utf-8');
+    return result.filePath;
+  });
 }
