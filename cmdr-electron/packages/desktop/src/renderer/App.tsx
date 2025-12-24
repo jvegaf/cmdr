@@ -2,26 +2,35 @@
  * Main Application Component
  *
  * AIDEV-NOTE: Root component for the CMDR application.
- * Manages the overall layout with toolbar, device tree, and mapping editor.
+ * Manages the overall layout with toolbar, device tree, mapping list, and property editor.
+ * Uses dedicated components for each panel: DeviceList, MappingList, MappingEditor.
  * Wraps everything in ThemeProvider for consistent theming.
  */
 
 import type { Device, Mapping } from '@cmdr/core';
 import { FolderOpen, Save } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
+import { DeviceList } from './components/devices';
+import { MappingEditor } from './components/editors';
+import { MappingList } from './components/mappings';
 import { ThemeProvider, ThemeToggle } from './components/theme';
 import { Button } from './components/ui';
 import { ipcClient } from './lib/ipc-client';
 import { useMidiStore } from './store/midiStore';
 import { useActiveFile, useTsiStore } from './store/tsiStore';
 
+// ============================================================================
+// AppLayout Component
+// ============================================================================
+
 /**
- * Main application layout
+ * Main application layout with 3-panel design
  */
 function AppLayout() {
   const activeFile = useActiveFile();
   const openFile = useTsiStore((s) => s.openFile);
+  const selectMappings = useTsiStore((s) => s.selectMappings);
   const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
 
   // Initialize MIDI on mount
@@ -61,6 +70,29 @@ function AppLayout() {
   const mappingCount = activeFile
     ? activeFile.devices.reduce((sum: number, d: Device) => sum + d.mappingCount, 0)
     : 0;
+
+  // Get selected device
+  const selectedDevice = useMemo(() => {
+    if (!activeFile || activeFile.selectedDeviceIndex === null) return null;
+    return activeFile.devices[activeFile.selectedDeviceIndex] ?? null;
+  }, [activeFile]);
+
+  // Get selected mappings
+  const selectedMappings = useMemo(() => {
+    if (!selectedDevice || !activeFile) return [];
+    return selectedDevice.mappings.filter((m: Mapping) =>
+      activeFile.selectedMappingIds.has(m.id)
+    );
+  }, [selectedDevice, activeFile]);
+
+  // Handle mapping selection change
+  const handleMappingSelectionChange = useCallback(
+    (newSelection: Set<number>) => {
+      if (!activeFile) return;
+      selectMappings(activeFile.id, Array.from(newSelection));
+    },
+    [activeFile, selectMappings]
+  );
 
   return (
     <div className="flex h-screen flex-col">
@@ -111,81 +143,37 @@ function AppLayout() {
       {/* Main Content */}
       <main className="flex flex-1 overflow-hidden">
         {/* Left Panel - Device Tree */}
-        <aside className="w-64 border-r border-border bg-card p-4">
+        <aside className="w-64 overflow-auto border-r border-border bg-card p-4">
           <h2 className="mb-4 text-sm font-medium">Devices</h2>
           {activeFile ? (
-            <div className="space-y-2">
-              {activeFile.devices.map((device: Device, index: number) => (
-                <button
-                  type="button"
-                  key={device.id}
-                  className={`w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${
-                    activeFile.selectedDeviceIndex === index
-                      ? 'bg-accent text-accent-foreground'
-                      : ''
-                  }`}
-                  onClick={() =>
-                    useTsiStore.getState().selectDevice(activeFile.id, index)
-                  }
-                >
-                  <div className="font-medium">{device.typeStr || 'Generic MIDI'}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {device.mappingCount} mappings
-                  </div>
-                </button>
-              ))}
-            </div>
+            <DeviceList
+              devices={activeFile.devices}
+              selectedIndex={activeFile.selectedDeviceIndex}
+              fileId={activeFile.id}
+            />
           ) : (
             <p className="text-sm text-muted-foreground">No file loaded</p>
           )}
         </aside>
 
         {/* Center - Mapping List */}
-        <section className="flex-1 overflow-auto p-4">
-          {activeFile && activeFile.selectedDeviceIndex !== null ? (
-            <div>
-              <h2 className="mb-4 text-sm font-medium">
-                Mappings (
-                {activeFile.devices[activeFile.selectedDeviceIndex]?.mappingCount ?? 0})
-              </h2>
-              <div className="space-y-1">
-                {activeFile.devices[
-                  activeFile.selectedDeviceIndex
-                ]?.mappings.map((mapping: Mapping) => (
-                  <button
-                    type="button"
-                    key={mapping.id}
-                    className={`w-full cursor-pointer rounded-md border border-border px-3 py-2 text-left text-sm transition-colors hover:bg-accent ${
-                      activeFile.selectedMappingIds.has(mapping.id)
-                        ? 'bg-accent text-accent-foreground'
-                        : ''
-                    }`}
-                    onClick={(e) => {
-                      if (e.shiftKey) {
-                        // Range selection - would need last selected ID
-                        useTsiStore.getState().selectMapping(activeFile.id, mapping.id, false);
-                      } else if (e.ctrlKey || e.metaKey) {
-                        useTsiStore.getState().toggleMappingSelection(activeFile.id, mapping.id);
-                      } else {
-                        useTsiStore.getState().selectMapping(activeFile.id, mapping.id, true);
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{mapping.commandName}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {mapping.midiBinding?.note ?? 'No binding'}
-                      </span>
-                    </div>
-                    {mapping.comment && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {mapping.comment}
-                      </div>
-                    )}
-                  </button>
-                ))}
+        <section className="flex flex-1 flex-col overflow-hidden">
+          {activeFile && selectedDevice ? (
+            <>
+              <div className="border-b border-border bg-muted/30 px-4 py-2">
+                <h2 className="text-sm font-medium">
+                  Mappings ({selectedDevice.mappingCount})
+                </h2>
               </div>
-            </div>
+              <div className="flex-1 overflow-hidden">
+                <MappingList
+                  mappings={selectedDevice.mappings}
+                  selectedIds={activeFile.selectedMappingIds}
+                  onSelectionChange={handleMappingSelectionChange}
+                  height={undefined} // Let it fill available space
+                />
+              </div>
+            </>
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="text-center">
@@ -205,21 +193,11 @@ function AppLayout() {
         </section>
 
         {/* Right Panel - Properties */}
-        <aside className="w-72 border-l border-border bg-card p-4">
-          <h2 className="mb-4 text-sm font-medium">Properties</h2>
-          {activeFile && activeFile.selectedMappingIds.size > 0 ? (
-            <div className="space-y-4 text-sm">
-              <div>
-                <span className="text-muted-foreground">Selected: </span>
-                <span>{activeFile.selectedMappingIds.size} mapping(s)</span>
-              </div>
-              {/* TODO: Add full property editor */}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select a mapping to view properties
-            </p>
-          )}
+        <aside className="w-80 overflow-auto border-l border-border bg-card">
+          <div className="border-b border-border px-4 py-2">
+            <h2 className="text-sm font-medium">Properties</h2>
+          </div>
+          <MappingEditor mappings={selectedMappings} />
         </aside>
       </main>
 
@@ -231,12 +209,18 @@ function AppLayout() {
             : 'Ready'}
         </p>
         <p className="text-xs text-muted-foreground">
-          {activeFile && `${deviceCount} devices, ${mappingCount} mappings`}
+          {activeFile
+            ? `${deviceCount} device${deviceCount !== 1 ? 's' : ''}, ${mappingCount} mapping${mappingCount !== 1 ? 's' : ''}`
+            : ''}
         </p>
       </footer>
     </div>
   );
 }
+
+// ============================================================================
+// App Root Component
+// ============================================================================
 
 /**
  * Root App component with providers
