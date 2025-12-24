@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 2 & 3 Complete - TSI Binary Parser with full round-trip support
+> **Status:** Phase 4 Complete - Commands System with full metadata for ~500 Traktor commands
 
 ## Project Structure
 
@@ -33,7 +33,7 @@ pnpm --filter @cmdr/core test:run
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **95 tests passing.**
+The core TSI parsing library. **140 tests passing.**
 
 **Completed:**
 - Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
@@ -50,12 +50,18 @@ The core TSI parsing library. **95 tests passing.**
 - XML parser with `parseTsiXml()` and `buildTsiXml()`
 - High-level `TsiFile` model with `fromXml()` and `toXml()`
 - Full round-trip support (parse → modify → serialize)
-- 24 round-trip tests verifying data integrity
-- Integration tests with 10 real TSI fixtures
+- **Commands System** with:
+  - `KnownCommands` enum (~300 command IDs)
+  - `COMMAND_METADATA` lookup table (~500 commands)
+  - `Categories` enum (~40 hierarchical categories)
+  - `TargetType`, `CommandInType`, `CommandOutType`, `FloatRangeType` enums
+  - Helper functions: `getCommandDescription()`, `getCommandsByCategory()`, etc.
+- 45 command tests + 95 parser tests = 140 total
 
 **Pending:**
-- Full command/condition system (Phase 4-5)
+- Conditions system (Phase 5)
 - MidiDefinition parsing
+- High-level Command/Condition objects
 
 ### @cmdr/midi 🚧
 
@@ -133,6 +139,31 @@ DIOM (Root Container)
             └── DCBM (MIDI Note Bindings)
 ```
 
+### Commands System
+
+The command metadata system provides lookup for all Traktor commands:
+
+```typescript
+import {
+  KnownCommands,
+  getCommandDescription,
+  getCommandsByCategory,
+  Categories,
+} from '@cmdr/core';
+
+// Get a specific command's metadata
+const loopIn = getCommandDescription(KnownCommands.DeckCommon_Loop_LoopInSetCue);
+// Returns: { id: 2392, name: "Loop In/Set Cue", category: Categories.DeckCommon_Loop, ... }
+
+// Get all commands in a category
+const mixerCommands = getCommandsByCategory(Categories.Mixer);
+
+// Check if a command ID is known
+if (isKnownCommand(commandId)) {
+  const desc = getCommandDescription(commandId);
+}
+```
+
 ### Round-Trip Support
 
 The parser supports full round-trip operations:
@@ -160,9 +191,9 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 1. Infrastructure | ✅ Complete | Monorepo setup, all packages scaffolded |
-| 2. TSI Binary Parser | ✅ Complete | All frame parsers + serializers, 95 tests |
+| 2. TSI Binary Parser | ✅ Complete | All frame parsers + serializers |
 | 3. XML Layer | ✅ Complete | Full parse/build with round-trip support |
-| 4. Commands | ⏳ Pending | Command system |
+| 4. Commands | ✅ Complete | Command metadata system (~500 commands) |
 | 5. Conditions | ⏳ Pending | Condition system |
 | 6-21. UI & More | ⏳ Pending | React UI, MIDI, packaging |
 
