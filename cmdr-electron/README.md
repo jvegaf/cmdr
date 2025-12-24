@@ -71,13 +71,32 @@ pnpm --filter @cmdr/desktop pack
 
 Distributable packages are created in `packages/desktop/release/{version}/`:
 
-| Platform | Format    | File                                              |
-| -------- | --------- | ------------------------------------------------- |
-| Linux    | AppImage  | `CMDR TSI Editor-{version}-linux-x86_64.AppImage` |
-| Linux    | Debian    | `cmdr-tsi-editor_{version}_amd64.deb`             |
-| Windows  | Installer | `CMDR TSI Editor-{version}-win-x64.exe`           |
-| Windows  | Portable  | `CMDR TSI Editor-{version}-win-x64-portable.exe`  |
-| macOS    | DMG       | `CMDR TSI Editor-{version}-mac-{arch}.dmg`        |
+| Platform | Format     | File                                                 |
+| -------- | ---------- | ---------------------------------------------------- |
+| Linux    | AppImage   | `CMDR TSI Editor-{version}-linux-x86_64.AppImage`    |
+| Linux    | Debian     | `cmdr-tsi-editor_{version}_amd64.deb`                |
+| Linux    | Arch (AUR) | `cmdr-tsi-editor-bin-{version}-1-x86_64.pkg.tar.zst` |
+| Windows  | Installer  | `CMDR TSI Editor-{version}-win-x64.exe`              |
+| Windows  | Portable   | `CMDR TSI Editor-{version}-win-x64-portable.exe`     |
+| macOS    | DMG        | `CMDR TSI Editor-{version}-mac-{arch}.dmg`           |
+
+### Arch Linux (AUR)
+
+For Arch Linux users, you can build and install the package directly:
+
+```bash
+# Build the AUR package (requires makepkg)
+make aur
+
+# Build and install (requires sudo)
+make aur-install
+
+# Or manually:
+cd aur/cmdr-tsi-editor-bin
+makepkg -si
+```
+
+The package installs to `/opt/cmdr-tsi-editor` and creates a launcher at `/usr/bin/cmdr-tsi-editor`.
 
 ## Package Status
 
