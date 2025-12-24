@@ -75,7 +75,7 @@ import { MappingList } from "./components/mappings";
 import { CommandsReport, ConditionsSummary } from "./components/reports";
 import { ThemeProvider, ThemeToggle } from "./components/theme";
 import { Button } from "./components/ui";
-import { SHORTCUTS, useKeyboardShortcuts, useMenuActions } from "./hooks";
+import { SHORTCUTS, useKeyboardShortcuts, useMenuActions, useAppClose } from "./hooks";
 import {
 	exportCommandsReportToCsv,
 	exportConditionsSummaryToCsv,
@@ -92,6 +92,7 @@ import {
 	useActiveFile,
 	useCanPaste,
 	useHasActiveFilters,
+	useHasDirtyFiles,
 	useOpenFiles,
 	useTsiStore,
 } from "./store/tsiStore";
@@ -109,6 +110,7 @@ function AppLayout() {
 	const recentFiles = useRecentFiles();
 	const canPaste = useCanPaste();
 	const hasActiveFilters = useHasActiveFilters();
+	const hasDirtyFiles = useHasDirtyFiles();
 	const historyInfo = useHistoryInfo(activeFile?.id ?? null);
 	const addRecentFile = useAppStore((s) => s.addRecentFile);
 	const searchInputRef = useRef<HTMLInputElement>(null);
@@ -170,6 +172,9 @@ function AppLayout() {
 	useEffect(() => {
 		initMidi();
 	}, [initMidi]);
+
+	// Phase 18.1: App close confirmation with dirty files
+	useAppClose(hasDirtyFiles);
 
 	// ========================================================================
 	// File Operations

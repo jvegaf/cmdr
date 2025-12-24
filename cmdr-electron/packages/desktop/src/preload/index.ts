@@ -5,6 +5,7 @@
  * Exposes safe IPC methods to the renderer via contextBridge.
  *
  * Phase 18: Added menu action listener for application menu integration.
+ * Phase 18.1: Added app close handlers for dirty file confirmation.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
@@ -29,6 +30,10 @@ export interface ElectronAPI {
   saveCsv: (content: string, defaultPath?: string) => Promise<string | null>;
   // Phase 18: Menu action listener
   onMenuAction: (callback: (payload: MenuActionPayload) => void) => () => void;
+  // Phase 18.1: App close handlers
+  onCheckDirtyFiles: (callback: () => void) => () => void;
+  respondDirtyFiles: (hasDirtyFiles: boolean) => void;
+  forceClose: () => void;
 }
 
 const electronAPI: ElectronAPI = {
@@ -53,7 +58,20 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.removeListener('menu:action', handler);
     };
   },
+  // Phase 18.1: App close handlers
+  onCheckDirtyFiles: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('app:check-dirty-files', handler);
+    return () => {
+      ipcRenderer.removeListener('app:check-dirty-files', handler);
+    };
+  },
+  respondDirtyFiles: (hasDirtyFiles) => {
+    ipcRenderer.send('app:dirty-files-response', hasDirtyFiles);
+  },
+  forceClose: () => {
+    ipcRenderer.send('app:force-close');
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronAPI);
-

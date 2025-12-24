@@ -7,6 +7,7 @@
  * The electron API is exposed via contextBridge in preload/index.ts.
  *
  * Phase 18: Added menu action listener support.
+ * Phase 18.1: Added app close handlers for dirty file confirmation.
  */
 
 import { TsiFile } from '@cmdr/core';
@@ -35,6 +36,10 @@ interface ElectronAPI {
   saveCsv: (content: string, defaultPath?: string) => Promise<string | null>;
   // Phase 18: Menu action listener
   onMenuAction: (callback: (payload: MenuActionPayload) => void) => () => void;
+  // Phase 18.1: App close handlers
+  onCheckDirtyFiles: (callback: () => void) => () => void;
+  respondDirtyFiles: (hasDirtyFiles: boolean) => void;
+  forceClose: () => void;
 }
 
 // ============================================================================
@@ -239,5 +244,45 @@ export function subscribeToMenuActions(
   } catch {
     // Not running in Electron, return no-op unsubscribe
     return () => {};
+  }
+}
+
+/**
+ * Subscribe to app close dirty file check requests
+ * @param callback Function to call when main process asks about dirty files
+ * @returns Unsubscribe function
+ */
+export function subscribeToCheckDirtyFiles(callback: () => void): () => void {
+  try {
+    const api = getElectronAPI();
+    return api.onCheckDirtyFiles(callback);
+  } catch {
+    // Not running in Electron, return no-op unsubscribe
+    return () => {};
+  }
+}
+
+/**
+ * Respond to the main process about dirty files status
+ * @param hasDirtyFiles Whether there are unsaved changes
+ */
+export function respondDirtyFiles(hasDirtyFiles: boolean): void {
+  try {
+    const api = getElectronAPI();
+    api.respondDirtyFiles(hasDirtyFiles);
+  } catch {
+    // Not running in Electron, ignore
+  }
+}
+
+/**
+ * Force close the app (used after user confirms quit without saving)
+ */
+export function forceCloseApp(): void {
+  try {
+    const api = getElectronAPI();
+    api.forceClose();
+  } catch {
+    // Not running in Electron, ignore
   }
 }
