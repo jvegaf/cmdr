@@ -24,7 +24,8 @@ export class BinaryReader {
    */
   static fromUint8Array(bytes: Uint8Array): BinaryReader {
     // Ensure we have a proper ArrayBuffer (not a view into a larger buffer)
-    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    // AIDEV-NOTE: Cast needed because slice() can return SharedArrayBuffer in some contexts
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
     return new BinaryReader(buffer);
   }
 
