@@ -26,7 +26,8 @@ function createWindow(): void {
     // Set to false to always show menu bar on Windows/Linux
     autoHideMenuBar: false,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      // AIDEV-NOTE: electron-vite outputs preload as .mjs in dev mode
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -41,11 +42,11 @@ function createWindow(): void {
   // The 'close' event is cancellable, allowing us to prompt the user
   mainWindow.on('close', async (event) => {
     if (!mainWindow) return;
-    
+
     // Ask renderer if there are dirty files
     // We use a synchronous pattern: send request, wait for response via IPC
     event.preventDefault();
-    
+
     try {
       // Ask renderer to check for dirty files
       mainWindow.webContents.send('app:check-dirty-files');
@@ -75,31 +76,31 @@ function setupCloseHandlers(): void {
   // Renderer reports dirty file status
   ipcMain.on('app:dirty-files-response', async (_event, hasDirtyFiles: boolean) => {
     if (!mainWindow) return;
-    
+
     if (!hasDirtyFiles) {
       // No dirty files, safe to close
       mainWindow.destroy();
       return;
     }
-    
+
     // Has dirty files, show confirmation dialog
     const { response } = await dialog.showMessageBox(mainWindow, {
       type: 'warning',
       title: 'Unsaved Changes',
       message: 'You have unsaved changes. Are you sure you want to quit?',
-      detail: 'Your changes will be lost if you don\'t save them.',
+      detail: "Your changes will be lost if you don't save them.",
       buttons: ['Quit Without Saving', 'Cancel'],
       defaultId: 1,
       cancelId: 1,
     });
-    
+
     if (response === 0) {
       // User chose to quit without saving
       mainWindow.destroy();
     }
     // If response === 1 (Cancel), do nothing - window stays open
   });
-  
+
   // Force close (used after user confirms they want to quit)
   ipcMain.on('app:force-close', () => {
     if (mainWindow) {
@@ -111,13 +112,13 @@ function setupCloseHandlers(): void {
 app.whenReady().then(() => {
   // Set up close handlers first
   setupCloseHandlers();
-  
+
   // Set up application menu
   setupApplicationMenu();
-  
+
   // Register IPC handlers
   registerIpcHandlers();
-  
+
   // Create the main window
   createWindow();
 
