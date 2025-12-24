@@ -24,6 +24,11 @@
  * - Export to CSV with column selection
  * - Commands report (overview of commands used)
  * - Conditions summary (overview of conditions used)
+ *
+ * Phase 17 additions:
+ * - About dialog
+ * - Settings dialog with persistent preferences
+ * - Keyboard shortcuts reference dialog
  */
 
 import { type Device, type Mapping, TsiFile } from "@cmdr/core";
@@ -36,11 +41,14 @@ import {
 	Download,
 	FilePlus,
 	FolderOpen,
+	Info,
+	Keyboard,
 	ListChecks,
 	Redo2,
 	Save,
 	SaveAll,
 	Scissors,
+	Settings,
 	Trash2,
 	Undo2,
 } from "lucide-react";
@@ -49,8 +57,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilterPanel, SearchInput } from "./components/common";
 import { DeviceList } from "./components/devices";
 import {
+	AboutDialog,
 	ConfirmDialog,
 	ExportDialog,
+	KeyboardShortcutsDialog,
+	SettingsDialog,
 	useConfirmDialog,
 	useExportDialog,
 } from "./components/dialogs";
@@ -130,6 +141,11 @@ function AppLayout() {
 	// Phase 16: Reports dialog state
 	const [showCommandsReport, setShowCommandsReport] = useState(false);
 	const [showConditionsSummary, setShowConditionsSummary] = useState(false);
+
+	// Phase 17: Help dialogs state
+	const [showAboutDialog, setShowAboutDialog] = useState(false);
+	const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+	const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
 
 	// Confirm dialog for unsaved changes
 	const unsavedChangesDialog = useConfirmDialog({
@@ -666,6 +682,35 @@ function AppLayout() {
 						MIDI {midiEnabled ? "Ready" : "Off"}
 					</span>
 
+					{/* Separator */}
+					<div className="h-6 w-px bg-border" />
+
+					{/* Help buttons (Phase 17) */}
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setShowShortcutsDialog(true)}
+						title="Keyboard Shortcuts"
+					>
+						<Keyboard className="h-4 w-4" />
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setShowSettingsDialog(true)}
+						title="Settings"
+					>
+						<Settings className="h-4 w-4" />
+					</Button>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setShowAboutDialog(true)}
+						title="About CMDR"
+					>
+						<Info className="h-4 w-4" />
+					</Button>
+
 					{/* Theme toggle */}
 					<ThemeToggle />
 				</div>
@@ -838,6 +883,24 @@ function AppLayout() {
 					const csv = exportConditionsSummaryToCsv(conditionsSummaryData);
 					ipcClient.saveCsvFile(csv, "conditions-summary.csv");
 				}}
+			/>
+
+			{/* About Dialog (Phase 17) */}
+			<AboutDialog
+				open={showAboutDialog}
+				onClose={() => setShowAboutDialog(false)}
+			/>
+
+			{/* Settings Dialog (Phase 17) */}
+			<SettingsDialog
+				open={showSettingsDialog}
+				onClose={() => setShowSettingsDialog(false)}
+			/>
+
+			{/* Keyboard Shortcuts Dialog (Phase 17) */}
+			<KeyboardShortcutsDialog
+				open={showShortcutsDialog}
+				onClose={() => setShowShortcutsDialog(false)}
 			/>
 		</div>
 	);
