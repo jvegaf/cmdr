@@ -1077,16 +1077,20 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 18: Application Menu
+## Fase 18: Application Menu ✅
 
-### 18.1 Menu Structure
+### 18.1 Menu Structure ✅
 
-- [ ] Crear `src/main/menu.ts`
-- [ ] Implementar menú:
-  - [ ] File (New, Open, Recent, Save, Save As, Close, Exit)
-  - [ ] Edit (Undo, Redo, Cut, Copy, Paste, Delete, Duplicate, Select All)
-  - [ ] View (Theme, Zoom)
-  - [ ] Help (Documentation, About)
+- [x] Crear `src/main/menu.ts`
+- [x] Implementar menú:
+  - [x] File (New, Open, Save, Save As, Export CSV, Close, Settings, Quit)
+  - [x] Edit (Undo, Redo, Cut, Copy, Paste, Duplicate, Delete, Select All)
+  - [x] View (Theme submenu with Light/Dark/System, Commands Report, Conditions Summary, Zoom, DevTools)
+  - [x] Help (Keyboard Shortcuts, Documentation, Report Issue, GitHub, About)
+- [x] macOS-specific app menu with Settings/About/Quit
+- [x] IPC communication for menu actions (`menu:action` channel)
+- [x] `useMenuActions` hook in renderer to handle menu events
+- [x] Integrate with existing keyboard shortcut handlers
 - [ ] **Tests:**
   - [ ] Test acciones de menú
 
@@ -1447,4 +1451,25 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - All dialogs support Escape key to close
   - About dialog has links that open in external browser
   - Settings dialog has Reset to Defaults button
+- Bloqueadores: Ninguno
+
+### Sesión 14 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 18 (Application Menu) completada:
+    - `menu.ts` - Native Electron menu with File, Edit, View, Help menus
+    - macOS-specific app menu with Settings/About/Quit
+    - IPC communication via `menu:action` channel with `MenuActionPayload`
+    - `setupApplicationMenu()` called on app ready
+    - `updateThemeMenuState()` for syncing theme radio buttons
+    - Updated `preload/index.ts` with `onMenuAction` listener
+    - Updated `ipc-client.ts` with `subscribeToMenuActions()` helper
+    - `useMenuActions.ts` - React hook to subscribe to menu events
+    - Updated `App.tsx` with menu action handlers
+  - ✅ 406 tests still passing
+- Notas:
+  - Menu actions reuse existing keyboard shortcut handlers
+  - `onMenuAction` returns unsubscribe function for React useEffect cleanup
+  - Theme submenu with radio buttons for Light/Dark/System
+  - Help menu has external links (Documentation, GitHub, Report Issue)
+  - View menu includes Commands Report, Conditions Summary
 - Bloqueadores: Ninguno
