@@ -7,3 +7,4 @@ cmdr/packages/
 .vs/
 tests/tmp/
 legacy/cmdr-codeplex-archive/
+cmdr-electron/packages/desktop/release/
