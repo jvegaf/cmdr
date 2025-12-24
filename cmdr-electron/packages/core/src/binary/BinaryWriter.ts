@@ -197,6 +197,24 @@ export class BinaryWriter {
   }
 
   /**
+   * Write an ASCII string (no length prefix)
+   * AIDEV-NOTE: Used by DVST frame for writing XML content. ASCII is single-byte encoding.
+   * Characters outside ASCII range (0-127) will be truncated to their lower byte.
+   */
+  writeAsciiString(value: string): void {
+    if (value.length === 0) {
+      return;
+    }
+
+    const bytes = new Uint8Array(value.length);
+    for (let i = 0; i < value.length; i++) {
+      // Mask to 7-bit ASCII (0-127), though technically we allow full byte
+      bytes[i] = value.charCodeAt(i) & 0xff;
+    }
+    this.writeBytes(bytes);
+  }
+
+  /**
    * Get the final buffer (trimmed to actual data length)
    */
   toArrayBuffer(): ArrayBuffer {

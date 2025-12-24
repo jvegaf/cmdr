@@ -120,6 +120,20 @@ describe('BinaryReader', () => {
       const reader = new BinaryReader(buffer);
       expect(reader.readWideString()).toBe('');
     });
+
+    it('should read ASCII string with specified length', () => {
+      // "Hello" in ASCII bytes
+      const buffer = new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]).buffer;
+      const reader = new BinaryReader(buffer);
+      expect(reader.readAsciiString(5)).toBe('Hello');
+    });
+
+    it('should read empty ASCII string', () => {
+      const buffer = new Uint8Array([0x01, 0x02]).buffer;
+      const reader = new BinaryReader(buffer);
+      expect(reader.readAsciiString(0)).toBe('');
+      expect(reader.offset).toBe(0); // Position unchanged
+    });
   });
 
   describe('error handling', () => {
@@ -228,6 +242,19 @@ describe('BinaryWriter', () => {
       const result = writer.toUint8Array();
       expect(result).toEqual(new Uint8Array([0x00, 0x00, 0x00, 0x00]));
     });
+
+    it('should write ASCII string without length prefix', () => {
+      const writer = new BinaryWriter();
+      writer.writeAsciiString('Hello');
+      const result = writer.toUint8Array();
+      expect(result).toEqual(new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]));
+    });
+
+    it('should write empty ASCII string', () => {
+      const writer = new BinaryWriter();
+      writer.writeAsciiString('');
+      expect(writer.length).toBe(0);
+    });
   });
 
   describe('buffer management', () => {
@@ -310,6 +337,16 @@ describe('Round-trip compatibility', () => {
     expect(reader.readWideString()).toBe('Hello, World!');
     expect(reader.readWideString()).toBe('');
     expect(reader.readWideString()).toBe('Unicode: äöü');
+  });
+
+  it('should read what was written - ASCII strings', () => {
+    const writer = new BinaryWriter();
+    writer.writeAsciiString('Hello');
+    writer.writeAsciiString('World');
+
+    const reader = BinaryReader.fromUint8Array(writer.toUint8Array());
+    expect(reader.readAsciiString(5)).toBe('Hello');
+    expect(reader.readAsciiString(5)).toBe('World');
   });
 
   it('should read what was written - FourCC', () => {

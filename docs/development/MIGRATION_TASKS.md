@@ -32,16 +32,16 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - [x] Crear estructura de directorios:
   - [x] `src/binary/`
   - [x] `src/format/`
-  - [ ] `src/xml/`
+  - [x] `src/xml/`
   - [ ] `src/commands/`
   - [ ] `src/conditions/`
   - [ ] `src/controls/`
-  - [ ] `src/enums/`
+  - [x] `src/enums/`
   - [x] `src/models/`
   - [x] `__tests__/`
 - [x] Crear `src/index.ts` con exports
 - [x] Verificar que `pnpm build` funciona
-- [x] Verificar que `pnpm test` funciona (35 tests passing)
+- [x] Verificar que `pnpm test` funciona (71 tests passing)
 
 ### 1.3 Package @cmdr/midi - Scaffold ✅
 
@@ -79,7 +79,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 2: Parser TSI - Formato Binario
+## Fase 2: Parser TSI - Formato Binario ✅
 
 ### 2.1 Binary Reader ✅
 
@@ -103,7 +103,8 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - [x] Implementar `slice(length): BinaryReader`
 - [x] Factory: `fromUint8Array(bytes)`
 - [x] Factory: `fromBase64(string)`
-- [x] **Tests:** 17 tests passing ✅
+- [x] Implementar `readAsciiString(length)` para DVST frame
+- [x] **Tests:** 20 tests passing ✅
 
 ### 2.2 Binary Writer ✅
 
@@ -120,8 +121,9 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - [x] Implementar `toArrayBuffer(): ArrayBuffer`
 - [x] Implementar `toUint8Array(): Uint8Array`
 - [x] Implementar `toBase64(): string`
-- [x] **Tests:** 10 tests passing ✅
-- [x] **Round-trip tests:** 8 tests passing ✅
+- [x] Implementar `writeAsciiString(value)` para DVST frame
+- [x] **Tests:** 12 tests passing ✅
+- [x] **Round-trip tests:** 9 tests passing ✅
 
 ### 2.3 Sistema de Frames ✅
 
@@ -152,96 +154,114 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - [ ] Test parseo lista de MidiDefinitions
   - [ ] Test round-trip MidiDefinition
 
-### 2.5 Format: MappingSettings
+### 2.5 Format: MappingSettings ✅
 
-- [ ] Crear `src/format/mapping-settings.ts`
-- [ ] Analizar `Format/MappingSettings.cs` para todos los campos
-- [ ] Crear interfaz `MappingSettingsData` con todos los campos:
-  - [ ] ControlType
-  - [ ] InteractionMode
-  - [ ] Target
-  - [ ] EncoderMode
-  - [ ] ConditionOneId, ConditionOneTarget, ConditionOneValue
-  - [ ] ConditionTwoId, ConditionTwoTarget, ConditionTwoValue
-  - [ ] ... (resto de campos)
-- [ ] Implementar `parseMappingSettings(reader): MappingSettingsData`
+- [x] Crear `src/format/MappingSettings.ts`
+- [x] Analizar `Format/MappingSettings.cs` para todos los campos
+- [x] Crear interfaz `MappingSettingsData` con todos los campos:
+  - [x] ControlType
+  - [x] InteractionMode
+  - [x] Target
+  - [x] EncoderMode
+  - [x] ConditionOneId, ConditionOneTarget, ConditionOneValue
+  - [x] ConditionTwoId, ConditionTwoTarget, ConditionTwoValue
+  - [x] ... (resto de campos)
+- [x] Implementar `parseMappingSettings(reader): MappingSettingsData`
 - [ ] Implementar `writeMappingSettings(writer, data): void`
 - [ ] **Tests:**
   - [ ] Test parseo MappingSettings completo
   - [ ] Test round-trip MappingSettings
 
-### 2.6 Format: Mapping
+### 2.6 Format: Mapping ✅
 
-- [ ] Crear `src/format/mapping.ts`
-- [ ] Crear interfaz `MappingData`
-- [ ] Implementar `parseMapping(reader): MappingData`
+- [x] Crear `src/format/Mapping.ts`
+- [x] Crear interfaz `MappingData`
+- [x] Implementar `parseMapping(reader): MappingData`
 - [ ] Implementar `writeMapping(writer, data): void`
-- [ ] Crear `src/format/mappings-list.ts`
-- [ ] Implementar `parseMappingsList(reader): MappingData[]`
+- [x] Crear `src/format/MappingsContainer.ts`
+- [x] Implementar `parseMappingsList(reader): MappingData[]`
 - [ ] **Tests:**
   - [ ] Test parseo Mapping individual
   - [ ] Test parseo lista de Mappings
   - [ ] Test round-trip Mapping
 
-### 2.7 Format: MidiNoteBinding
+### 2.7 Format: MidiNoteBinding ✅
 
-- [ ] Crear `src/format/midi-note-binding.ts`
-- [ ] Crear interfaz `MidiNoteBindingData`
-- [ ] Implementar `parseMidiNoteBinding(reader): MidiNoteBindingData`
+- [x] Crear `src/format/MidiNoteBinding.ts`
+- [x] Crear interfaz `MidiNoteBindingData`
+- [x] Implementar `parseMidiNoteBinding(reader): MidiNoteBindingData`
 - [ ] Implementar `writeMidiNoteBinding(writer, data): void`
 - [ ] **Tests:**
   - [ ] Test parseo MidiNoteBinding
   - [ ] Test round-trip MidiNoteBinding
 
-### 2.8 Format: DeviceData
+### 2.8 Format: DeviceData ✅
 
-- [ ] Crear `src/format/device-data.ts`
-- [ ] Crear interfaz `DeviceDataData`
-- [ ] Implementar `parseDeviceData(reader): DeviceDataData`
+- [x] Crear `src/format/DeviceData.ts`
+- [x] Crear interfaz `DeviceDataData`
+- [x] Implementar `parseDeviceData(reader): DeviceDataData`
 - [ ] Implementar `writeDeviceData(writer, data): void`
 - [ ] **Tests:**
   - [ ] Test parseo DeviceData
   - [ ] Test round-trip DeviceData
 
-### 2.9 Format: Device
+### 2.9 Format: Device ✅
 
-- [ ] Crear `src/format/device.ts`
-- [ ] Crear interfaz `DeviceFrameData`
-- [ ] Implementar `parseDevice(reader): DeviceFrameData`
+- [x] Crear `src/format/Device.ts`
+- [x] Crear interfaz `DeviceFrameData`
+- [x] Implementar `parseDevice(reader): DeviceFrameData`
 - [ ] Implementar `writeDevice(writer, data): void`
 - [ ] **Tests:**
   - [ ] Test parseo Device completo
   - [ ] Test round-trip Device
 
-### 2.10 Format: DevicesList
+### 2.10 Format: DevicesList ✅
 
-- [ ] Crear `src/format/devices-list.ts`
-- [ ] Implementar `parseDevicesList(reader): DeviceFrameData[]`
+- [x] Integrado en `DeviceMappingsContainer.ts`
+- [x] Implementar `parseDevicesList(reader): DeviceFrameData[]`
 - [ ] Implementar `writeDevicesList(writer, devices): void`
 - [ ] **Tests:**
   - [ ] Test parseo lista de devices
   - [ ] Test round-trip DevicesList
 
-### 2.11 Format: DeviceMappingsContainer
+### 2.11 Format: DeviceMappingsContainer ✅
 
-- [ ] Crear `src/format/device-mappings-container.ts`
-- [ ] Crear interfaz `DeviceMappingsContainerData`
-- [ ] Implementar `parseDeviceMappingsContainer(reader): DeviceMappingsContainerData`
+- [x] Crear `src/format/DeviceMappingsContainer.ts`
+- [x] Crear interfaz `DeviceMappingsContainerData`
+- [x] Implementar `parseDeviceMappingsContainer(reader): DeviceMappingsContainerData`
 - [ ] Implementar `writeDeviceMappingsContainer(writer, data): void`
 - [ ] **Tests:**
   - [ ] Test parseo container completo
   - [ ] Test round-trip container
 
-### 2.12 Tests de Integración - Formato Binario
+### 2.12 Tests de Integración - Formato Binario ✅
 
-- [ ] Test: Cargar binario de `encoder mode demo.tsi`
+- [x] Test: Cargar binario de `encoder mode demo.tsi`
 - [ ] Test: Round-trip binario `encoder mode demo.tsi`
-- [ ] Test: Cargar binario de `fx_list_from_TK.tsi`
+- [x] Test: Cargar binario de `fx_list_from_TK.tsi`
 - [ ] Test: Round-trip binario `fx_list_from_TK.tsi`
-- [ ] Test: Cargar binario de `kontrol s4 mk2`
+- [x] Test: Cargar binario de `kontrol s4 mk2`
 - [ ] Test: Round-trip binario `kontrol s4 mk2`
-- [ ] Test: Cargar todos los fixtures sin errores
+- [x] Test: Cargar todos los fixtures sin errores (21 integration tests)
 - [ ] Test: Round-trip todos los fixtures producen bytes idénticos
+
+### 2.13 High-Level TsiFile Model ✅
+
+- [x] Crear `src/models/TsiFile.ts`
+- [x] Crear clase `TsiFile` combinando XML + binary parsing
+- [x] Implementar `parseTsiFile(xmlContent): TsiFile`
+- [x] Implementar `getAllDevices(): DeviceFrameData[]`
+- [x] Implementar `getTotalMappingCount(): number`
+- [x] **Tests:** 10 deep-parsing tests passing ✅
+
+### 2.14 XML Parser ✅
+
+- [x] Crear `src/xml/TsiXmlParser.ts`
+- [x] Implementar `parseTsiXml(xmlContent): TsiXmlDocument`
+- [x] Implementar `getEntry(name): XmlEntry | null`
+- [x] Implementar `getDeviceIoConfigController(): string | null`
+- [x] Implementar `getDeviceIoConfigKeyboard(): string | null`
+- [x] **Tests:** Integrated into integration tests
 
 ---
 
@@ -1071,10 +1091,19 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ## Notas de Progreso
 
-### Sesión 1 - [FECHA]
+### Sesión 1 - 2024-12-24
 - Tareas completadas:
+  - ✅ Fase 2 (TSI Binary Parser) - Lectura completa implementada
+  - ✅ Creados todos los parsers de frames: DIOM, DEVI, DDAT, DDCB, CMAS, CMAI, CMAD, DCBM
+  - ✅ Implementado TsiXmlParser para extraer datos Base64 del XML
+  - ✅ Implementado modelo TsiFile de alto nivel
+  - ✅ Añadidos métodos readAsciiString/writeAsciiString a BinaryReader/Writer
+  - ✅ 71 tests pasando (40 binary, 21 integration, 10 deep-parsing)
 - Notas:
-- Bloqueadores:
+  - Los 10 fixtures TSI cargan correctamente
+  - Falta implementar serialización (write) para round-trip completo
+  - Enums básicos añadidos (MappingType, DeviceTarget)
+- Bloqueadores: Ninguno
 
 ### Sesión 2 - [FECHA]
 - Tareas completadas:

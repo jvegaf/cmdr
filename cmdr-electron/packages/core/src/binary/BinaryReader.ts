@@ -251,6 +251,25 @@ export class BinaryReader {
   }
 
   /**
+   * Read an ASCII string of a specified length (no length prefix)
+   * AIDEV-NOTE: Used by DVST frame for reading XML content. ASCII is single-byte encoding,
+   * so no byte-order concerns. The C# version's double-reverse is a no-op for ASCII.
+   */
+  readAsciiString(length: number): string {
+    if (length === 0) {
+      return '';
+    }
+
+    const bytes = this.readBytes(length);
+    // ASCII is single-byte, so we can directly convert each byte to a character
+    let result = '';
+    for (let i = 0; i < bytes.length; i++) {
+      result += String.fromCharCode(bytes[i]!);
+    }
+    return result;
+  }
+
+  /**
    * Peek at bytes without advancing position
    */
   peekBytes(count: number): Uint8Array {
