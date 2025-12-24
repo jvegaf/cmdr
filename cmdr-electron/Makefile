@@ -10,7 +10,7 @@
 #   make test          - Run all tests
 #   make dist          - Build distributable packages
 
-.PHONY: help install dev build test test-watch coverage lint format clean dist dist-linux dist-win dist-mac typecheck
+.PHONY: help install dev build test test-watch coverage lint format clean dist dist-linux dist-win dist-mac typecheck aur aur-install
 
 # Colors for terminal output
 CYAN := \033[36m
@@ -67,6 +67,8 @@ help:
 	@echo "  $(CYAN)dist-mac$(RESET)        Build macOS DMG"
 	@echo "  $(CYAN)dist-all$(RESET)        Build for all platforms"
 	@echo "  $(CYAN)pack$(RESET)            Create unpacked directory (for testing)"
+	@echo "  $(CYAN)aur$(RESET)             Build Arch Linux AUR package"
+	@echo "  $(CYAN)aur-install$(RESET)     Build and install AUR package"
 	@echo ""
 	@echo "$(BOLD)$(GREEN)Utility:$(RESET)"
 	@echo "  $(CYAN)status$(RESET)          Show project status (git, tests)"
@@ -223,6 +225,29 @@ pack: build
 	@echo "$(CYAN)Creating unpacked build...$(RESET)"
 	pnpm --filter @cmdr/desktop pack
 	@echo "$(GREEN)✓ Unpacked build created$(RESET)"
+
+#==============================================================================
+# AUR Package (Arch Linux)
+#==============================================================================
+
+aur: dist-linux
+	@echo "$(CYAN)Building AUR package...$(RESET)"
+	cd aur/cmdr-tsi-editor-bin && makepkg -sf
+	@echo "$(GREEN)✓ AUR package built$(RESET)"
+	@echo "$(YELLOW)Package: aur/cmdr-tsi-editor-bin/cmdr-tsi-editor-bin-*.pkg.tar.zst$(RESET)"
+
+aur-install: aur
+	@echo "$(CYAN)Installing AUR package...$(RESET)"
+	cd aur/cmdr-tsi-editor-bin && sudo pacman -U --noconfirm cmdr-tsi-editor-bin-*.pkg.tar.zst
+	@echo "$(GREEN)✓ Package installed$(RESET)"
+	@echo "$(YELLOW)Run 'cmdr-tsi-editor' to start the application$(RESET)"
+
+aur-clean:
+	@echo "$(YELLOW)Cleaning AUR build artifacts...$(RESET)"
+	rm -rf aur/cmdr-tsi-editor-bin/pkg
+	rm -rf aur/cmdr-tsi-editor-bin/src
+	rm -f aur/cmdr-tsi-editor-bin/*.pkg.tar.zst
+	@echo "$(GREEN)✓ AUR artifacts cleaned$(RESET)"
 
 #==============================================================================
 # Utility

@@ -11,6 +11,14 @@ out/
 # Electron-vite
 .electron-vite/
 
+# Electron-builder release
+release/
+
+# AUR build artifacts
+aur/*/pkg/
+aur/*/src/
+aur/*/*.pkg.tar.zst
+
 # Test coverage
 coverage/
 

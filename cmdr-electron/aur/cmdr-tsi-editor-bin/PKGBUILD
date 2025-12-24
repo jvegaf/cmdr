@@ -1,0 +1,118 @@
+# Maintainer: Your Name <your.email@example.com>
+# AIDEV-NOTE: This is the -bin variant that packages the pre-built AppImage.
+# For building from source, electron apps require complex node/pnpm setup.
+
+pkgname=cmdr-tsi-editor-bin
+_pkgname=cmdr-tsi-editor
+_binname='@cmdrdesktop'
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="TSI File Editor for NI Traktor Pro - Create and modify MIDI controller mappings"
+arch=('x86_64')
+url="https://github.com/cmdr-editor/cmdr"
+license=('MIT')
+depends=(
+    'gtk3'
+    'nss'
+    'alsa-lib'
+    'libxss'
+    'libxtst'
+    'xdg-utils'
+    'libsecret'
+    'libnotify'
+)
+optdepends=(
+    'libappindicator-gtk3: for system tray support'
+)
+provides=("${_pkgname}")
+conflicts=("${_pkgname}" "${_pkgname}-git")
+options=('!strip' '!debug')
+
+# AIDEV-NOTE: The AppImage filename from electron-builder
+_appimage="CMDR TSI Editor-${pkgver}-linux-x86_64.AppImage"
+
+# For GitHub releases, uncomment and update:
+# source=("${_appimage}::https://github.com/cmdr-editor/cmdr/releases/download/v${pkgver}/${_appimage// /%20}"
+#         "${_pkgname}.desktop")
+# sha256sums=('SKIP' 'SKIP')
+
+# For local development builds:
+source=("${_pkgname}.desktop")
+sha256sums=('SKIP')
+noextract=()
+
+prepare() {
+    # For local builds, copy the AppImage from the build output
+    if [ ! -f "${srcdir}/${_appimage}" ]; then
+        _local_appimage="${startdir}/../../packages/desktop/release/${pkgver}/${_appimage}"
+        if [ -f "${_local_appimage}" ]; then
+            cp "${_local_appimage}" "${srcdir}/"
+        else
+            echo "ERROR: AppImage not found. Build it first with:"
+            echo "  cd packages/desktop && pnpm build && pnpm dist:linux"
+            return 1
+        fi
+    fi
+    
+    # Extract AppImage
+    chmod +x "${srcdir}/${_appimage}"
+    cd "${srcdir}"
+    "${srcdir}/${_appimage}" --appimage-extract
+}
+
+package() {
+    # Install app files to /opt
+    install -dm755 "${pkgdir}/opt/${_pkgname}"
+    cp -r "${srcdir}/squashfs-root/." "${pkgdir}/opt/${_pkgname}/"
+    
+    # Fix permissions on app directory
+    chmod 755 "${pkgdir}/opt/${_pkgname}"
+    
+    # Fix permissions on main binary
+    chmod 755 "${pkgdir}/opt/${_pkgname}/${_binname}"
+    
+    # Fix chrome-sandbox permissions (required for Electron sandbox)
+    if [ -f "${pkgdir}/opt/${_pkgname}/chrome-sandbox" ]; then
+        chmod 4755 "${pkgdir}/opt/${_pkgname}/chrome-sandbox"
+    fi
+    
+    # Create launcher script in /usr/bin
+    install -dm755 "${pkgdir}/usr/bin"
+    cat > "${pkgdir}/usr/bin/${_pkgname}" << EOF
+#!/bin/bash
+# CMDR TSI Editor launcher
+# AIDEV-NOTE: --no-sandbox may be needed if chrome-sandbox has permission issues
+exec /opt/${_pkgname}/${_binname} "\$@"
+EOF
+    chmod 755 "${pkgdir}/usr/bin/${_pkgname}"
+    
+    # Install desktop file
+    install -Dm644 "${srcdir}/${_pkgname}.desktop" \
+        "${pkgdir}/usr/share/applications/${_pkgname}.desktop"
+    
+    # Install icon (512x512 is the only size available)
+    install -Dm644 "${srcdir}/squashfs-root/usr/share/icons/hicolor/512x512/apps/${_binname}.png" \
+        "${pkgdir}/usr/share/icons/hicolor/512x512/apps/${_pkgname}.png"
+    
+    # Create symlinks for smaller icon sizes (desktop environments will scale)
+    for size in 256 128 64 48 32 16; do
+        install -dm755 "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps"
+        ln -s "../../../512x512/apps/${_pkgname}.png" \
+            "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/${_pkgname}.png"
+    done
+    
+    # Install license
+    install -Dm644 "${srcdir}/squashfs-root/resources/LICENSE" \
+        "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    
+    # Install README
+    install -Dm644 "${srcdir}/squashfs-root/resources/README.md" \
+        "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+    
+    # Cleanup unnecessary files from opt
+    rm -rf "${pkgdir}/opt/${_pkgname}/usr"
+    rm -f "${pkgdir}/opt/${_pkgname}/AppRun"
+    rm -f "${pkgdir}/opt/${_pkgname}/${_binname}.desktop"
+    rm -f "${pkgdir}/opt/${_pkgname}/${_binname}.png"
+    rm -f "${pkgdir}/opt/${_pkgname}/.DirIcon"
+}

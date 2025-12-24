@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=CMDR TSI Editor
+GenericName=TSI File Editor
+Comment=Create and modify MIDI controller mappings for NI Traktor Pro
+Exec=cmdr-tsi-editor %F
+Icon=cmdr-tsi-editor
+Terminal=false
+Type=Application
+Categories=Audio;AudioVideo;Music;
+MimeType=application/x-tsi;
+Keywords=traktor;midi;controller;mapping;tsi;dj;music;
+StartupWMClass=cmdr-tsi-editor
