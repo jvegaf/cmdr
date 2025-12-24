@@ -846,43 +846,43 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 13: UI - Funcionalidades de Archivo
+## Fase 13: UI - Funcionalidades de Archivo ✅
 
-### 13.1 File Operations
+### 13.1 File Operations ✅
 
-- [ ] Implementar "New File"
-- [ ] Implementar "Open File"
-- [ ] Implementar "Save"
-- [ ] Implementar "Save As"
-- [ ] Implementar "Close"
+- [x] Implementar "New File"
+- [x] Implementar "Open File"
+- [x] Implementar "Save"
+- [x] Implementar "Save As"
+- [x] Implementar "Close" con confirmación de dirty state
 - [ ] **Tests:**
   - [ ] Test cada operación
 
-### 13.2 Recent Files
+### 13.2 Recent Files ✅
 
-- [ ] Implementar lista de archivos recientes
-- [ ] Persistir en electron-store
+- [x] Implementar lista de archivos recientes
+- [x] Persistir en localStorage (zustand persist)
 - [ ] Mostrar en menú File
-- [ ] Mostrar en pantalla de bienvenida
+- [x] Mostrar en pantalla de bienvenida
 - [ ] **Tests:**
   - [ ] Test agregar a recientes
   - [ ] Test abrir desde recientes
 
-### 13.3 Dirty State
+### 13.3 Dirty State ✅
 
-- [ ] Detectar cambios no guardados
-- [ ] Indicador visual (*) en tab
-- [ ] Confirmación al cerrar archivo modificado
+- [x] Detectar cambios no guardados
+- [x] Indicador visual (*) en tab
+- [x] Confirmación al cerrar archivo modificado
 - [ ] Confirmación al cerrar app con cambios
 - [ ] **Tests:**
   - [ ] Test detección de cambios
   - [ ] Test confirmación
 
-### 13.4 File Tabs
+### 13.4 File Tabs ✅
 
-- [ ] Implementar tabs para múltiples archivos
-- [ ] Tab activo destacado
-- [ ] Botón cerrar en cada tab
+- [x] Implementar tabs para múltiples archivos
+- [x] Tab activo destacado
+- [x] Botón cerrar en cada tab
 - [ ] Reordenar tabs con drag
 - [ ] **Tests:**
   - [ ] Test múltiples archivos
@@ -1310,6 +1310,30 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - MappingList supports column sorting and multi-select
   - MappingEditor shows summary for multiple selections
   - Virtualization ensures smooth performance with large TSI files
+- Bloqueadores: Ninguno
+
+### Sesión 10 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 13 (File Operations) mayormente completada:
+    - `FileTabs.tsx` - Tab bar for multiple open files with close buttons
+    - `ConfirmDialog.tsx` - Modal dialog with useConfirmDialog hook
+    - `appStore.ts` - Recent files with localStorage persistence (zustand persist)
+    - Updated `App.tsx` with:
+      - New File button (creates empty TsiFile)
+      - Save / Save As functionality
+      - Close with dirty state confirmation
+      - Recent files in welcome screen
+  - ✅ Added dependency: electron-store (for future use)
+  - ✅ 406 tests still passing
+- Notas:
+  - FileTabs supports middle-click to close
+  - Dirty indicator (*) shown in tabs and status bar
+  - Unsaved changes dialog with Save/Don't Save/Cancel options
+  - Recent files limited to 10, sorted by last opened
+- Pendiente:
+  - Tab drag reorder
+  - App close confirmation with dirty files
+  - Recent files in application menu
 - Bloqueadores: Ninguno
 
 <!-- Agregar más sesiones según avance el proyecto -->

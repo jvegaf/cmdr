@@ -2,41 +2,87 @@
  * Main Application Component
  *
  * AIDEV-NOTE: Root component for the CMDR application.
- * Manages the overall layout with toolbar, device tree, mapping list, and property editor.
- * Uses dedicated components for each panel: DeviceList, MappingList, MappingEditor.
- * Wraps everything in ThemeProvider for consistent theming.
+ * Manages the overall layout with toolbar, file tabs, device tree, mapping list, and property editor.
+ *
+ * Phase 13 additions:
+ * - FileTabs for multiple open files
+ * - New File functionality
+ * - Save/Save As with dirty state handling
+ * - Close file with unsaved changes confirmation
  */
 
-import type { Device, Mapping } from "@cmdr/core";
-import { FolderOpen, Save } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
+import { type Device, type Mapping, TsiFile } from "@cmdr/core";
+import { Clock, FilePlus, FolderOpen, Save, SaveAll } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DeviceList } from "./components/devices";
+import { ConfirmDialog, useConfirmDialog } from "./components/dialogs";
 import { MappingEditor } from "./components/editors";
+import { FileTabs } from "./components/files";
 import { MappingList } from "./components/mappings";
 import { ThemeProvider, ThemeToggle } from "./components/theme";
 import { Button } from "./components/ui";
 import { ipcClient } from "./lib/ipc-client";
+import { useAppStore, useRecentFiles } from "./store/appStore";
 import { useMidiStore } from "./store/midiStore";
-import { useActiveFile, useTsiStore } from "./store/tsiStore";
+import {
+	useActiveFile,
+	useOpenFiles,
+	useTsiStore,
+} from "./store/tsiStore";
 
 // ============================================================================
 // AppLayout Component
 // ============================================================================
 
 /**
- * Main application layout with 3-panel design
+ * Main application layout with file tabs and 3-panel design
  */
 function AppLayout() {
 	const activeFile = useActiveFile();
-	const openFile = useTsiStore((s) => s.openFile);
-	const selectMappings = useTsiStore((s) => s.selectMappings);
+	const openFiles = useOpenFiles();
+	const recentFiles = useRecentFiles();
+	const addRecentFile = useAppStore((s) => s.addRecentFile);
+	const {
+		openFile,
+		createNewFile,
+		closeFile,
+		setActiveFile,
+		selectMappings,
+		markClean,
+		updateFilePath,
+	} = useTsiStore();
 	const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
+
+	// State for the file to close (when confirmation is needed)
+	// AIDEV-NOTE: This tracks which file triggered the unsaved changes dialog
+	const [_pendingCloseFileId, setPendingCloseFileId] = useState<string | null>(
+		null,
+	);
+
+	// Confirm dialog for unsaved changes
+	const unsavedChangesDialog = useConfirmDialog({
+		title: "Unsaved Changes",
+		message: "Do you want to save changes before closing?",
+		confirmText: "Save",
+		cancelText: "Cancel",
+		thirdOptionText: "Don't Save",
+	});
 
 	// Initialize MIDI on mount
 	useEffect(() => {
 		initMidi();
 	}, [initMidi]);
+
+	// ========================================================================
+	// File Operations
+	// ========================================================================
+
+	// Handle new file
+	const handleNewFile = useCallback(() => {
+		const tsiFile = TsiFile.create();
+		createNewFile(tsiFile);
+	}, [createNewFile]);
 
 	// Handle open file
 	const handleOpenFile = useCallback(async () => {
@@ -44,11 +90,27 @@ function AppLayout() {
 			const result = await ipcClient.openTsiFile();
 			if (result) {
 				openFile(result.filePath, result.tsiFile);
+				addRecentFile(result.filePath);
 			}
 		} catch (error) {
 			console.error("Failed to open file:", error);
 		}
-	}, [openFile]);
+	}, [openFile, addRecentFile]);
+
+	// Handle open recent file
+	const handleOpenRecentFile = useCallback(
+		async (filePath: string) => {
+			try {
+				const tsiFile = await ipcClient.readTsiFile(filePath);
+				openFile(filePath, tsiFile);
+				addRecentFile(filePath);
+			} catch (error) {
+				console.error("Failed to open recent file:", error);
+				// TODO: Show error toast and possibly remove from recent files
+			}
+		},
+		[openFile, addRecentFile],
+	);
 
 	// Handle save file
 	const handleSaveFile = useCallback(async () => {
@@ -56,14 +118,89 @@ function AppLayout() {
 
 		try {
 			if (activeFile.filePath) {
+				// File has a path - save directly
 				await ipcClient.writeTsiFile(activeFile.tsiFile, activeFile.filePath);
+				markClean(activeFile.id);
+				addRecentFile(activeFile.filePath);
 			} else {
-				await ipcClient.saveTsiFile(activeFile.tsiFile);
+				// No path - use Save As dialog
+				const savedPath = await ipcClient.saveTsiFile(activeFile.tsiFile);
+				if (savedPath) {
+					updateFilePath(activeFile.id, savedPath);
+					markClean(activeFile.id);
+					addRecentFile(savedPath);
+				}
 			}
 		} catch (error) {
 			console.error("Failed to save file:", error);
 		}
-	}, [activeFile]);
+	}, [activeFile, markClean, updateFilePath, addRecentFile]);
+
+	// Handle save as
+	const handleSaveAsFile = useCallback(async () => {
+		if (!activeFile) return;
+
+		try {
+			const savedPath = await ipcClient.saveTsiFile(
+				activeFile.tsiFile,
+				activeFile.filePath ?? undefined,
+			);
+			if (savedPath) {
+				updateFilePath(activeFile.id, savedPath);
+				markClean(activeFile.id);
+				addRecentFile(savedPath);
+			}
+		} catch (error) {
+			console.error("Failed to save file:", error);
+		}
+	}, [activeFile, markClean, updateFilePath, addRecentFile]);
+
+	// Handle close file request (may show confirmation)
+	const handleCloseFileRequest = useCallback(
+		async (fileId: string) => {
+			const file = useTsiStore.getState().openFiles.get(fileId);
+			if (!file) return;
+
+			if (file.isDirty) {
+				// Show confirmation dialog
+				setPendingCloseFileId(fileId);
+				const result = await unsavedChangesDialog.confirm();
+
+				if (result === "confirm") {
+					// Save then close
+					try {
+						if (file.filePath) {
+							await ipcClient.writeTsiFile(file.tsiFile, file.filePath);
+						} else {
+							const savedPath = await ipcClient.saveTsiFile(file.tsiFile);
+							if (!savedPath) {
+								// User cancelled save dialog - don't close
+								setPendingCloseFileId(null);
+								return;
+							}
+						}
+						closeFile(fileId);
+					} catch (error) {
+						console.error("Failed to save file:", error);
+					}
+				} else if (result === "third") {
+					// Don't save, just close
+					closeFile(fileId);
+				}
+				// "cancel" - do nothing
+
+				setPendingCloseFileId(null);
+			} else {
+				// No unsaved changes - close directly
+				closeFile(fileId);
+			}
+		},
+		[closeFile, unsavedChangesDialog],
+	);
+
+	// ========================================================================
+	// Device/Mapping Selection
+	// ========================================================================
 
 	// Get device and mapping counts
 	const deviceCount = activeFile?.devices.length ?? 0;
@@ -97,6 +234,10 @@ function AppLayout() {
 		[activeFile, selectMappings],
 	);
 
+	// ========================================================================
+	// Render
+	// ========================================================================
+
 	return (
 		<div className="flex h-screen flex-col">
 			{/* Toolbar */}
@@ -107,6 +248,10 @@ function AppLayout() {
 
 					{/* File actions */}
 					<div className="ml-4 flex items-center gap-1">
+						<Button variant="ghost" size="sm" onClick={handleNewFile}>
+							<FilePlus className="mr-2 h-4 w-4" />
+							New
+						</Button>
 						<Button variant="ghost" size="sm" onClick={handleOpenFile}>
 							<FolderOpen className="mr-2 h-4 w-4" />
 							Open
@@ -119,6 +264,15 @@ function AppLayout() {
 						>
 							<Save className="mr-2 h-4 w-4" />
 							Save
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={handleSaveAsFile}
+							disabled={!activeFile}
+						>
+							<SaveAll className="mr-2 h-4 w-4" />
+							Save As
 						</Button>
 					</div>
 				</div>
@@ -142,6 +296,14 @@ function AppLayout() {
 					<ThemeToggle />
 				</div>
 			</header>
+
+			{/* File Tabs */}
+			<FileTabs
+				files={openFiles}
+				activeFileId={activeFile?.id ?? null}
+				onSelectFile={setActiveFile}
+				onCloseFile={handleCloseFileRequest}
+			/>
 
 			{/* Main Content */}
 			<main className="flex flex-1 overflow-hidden">
@@ -177,18 +339,53 @@ function AppLayout() {
 								/>
 							</div>
 						</>
-					) : (
+					) : activeFile ? (
+						// File loaded but no device selected
 						<div className="flex h-full items-center justify-center">
-							<div className="text-center">
-								<p className="text-muted-foreground">
-									{activeFile
-										? "Select a device to view mappings"
-										: "Open a TSI file to start editing"}
+							<p className="text-muted-foreground">
+								Select a device to view mappings
+							</p>
+						</div>
+					) : (
+						// No file loaded - show welcome screen
+						<div className="flex h-full items-center justify-center">
+							<div className="text-center max-w-md">
+								<p className="text-muted-foreground mb-4">
+									Open a TSI file to start editing
 								</p>
-								{!activeFile && (
-									<p className="mt-2 text-sm text-muted-foreground">
-										File → Open or Ctrl+O
-									</p>
+								<div className="flex items-center justify-center gap-2 mb-6">
+									<Button variant="outline" onClick={handleNewFile}>
+										<FilePlus className="mr-2 h-4 w-4" />
+										New File
+									</Button>
+									<Button variant="outline" onClick={handleOpenFile}>
+										<FolderOpen className="mr-2 h-4 w-4" />
+										Open File
+									</Button>
+								</div>
+
+								{/* Recent Files */}
+								{recentFiles.length > 0 && (
+									<div className="border-t border-border pt-4">
+										<h3 className="text-sm font-medium mb-2 flex items-center justify-center gap-2">
+											<Clock className="h-4 w-4" />
+											Recent Files
+										</h3>
+										<ul className="space-y-1 text-left">
+											{recentFiles.slice(0, 5).map((file) => (
+												<li key={file.path}>
+													<button
+														type="button"
+														onClick={() => handleOpenRecentFile(file.path)}
+														className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent rounded truncate"
+														title={file.path}
+													>
+														{file.name}
+													</button>
+												</li>
+											))}
+										</ul>
+									</div>
 								)}
 							</div>
 						</div>
@@ -220,6 +417,9 @@ function AppLayout() {
 						: ""}
 				</p>
 			</footer>
+
+			{/* Unsaved Changes Confirmation Dialog */}
+			<ConfirmDialog {...unsavedChangesDialog.dialogProps} />
 		</div>
 	);
 }
