@@ -2,4 +2,4 @@
  * Editors components barrel export
  */
 
-export { MappingEditor, type MappingEditorProps } from './MappingEditor';
+export { MappingEditor, type MappingEditorProps } from "./MappingEditor";

@@ -26,7 +26,11 @@
  */
 
 // Enums
-export { Categories } from "./categories";
+export {
+	CATEGORY_DESCRIPTIONS,
+	Categories,
+	getCategoryDescription,
+} from "./categories";
 // Types
 export type {
 	CommandDescription,
