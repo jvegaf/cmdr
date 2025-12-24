@@ -975,29 +975,34 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 15: UI - Búsqueda y Filtros
+## Fase 15: UI - Búsqueda y Filtros ✅
 
-### 15.1 Search
+### 15.1 Search ✅
 
-- [ ] Crear `components/common/search-input.tsx`
-- [ ] Implementar búsqueda global
-- [ ] Buscar en:
-  - [ ] Command name
-  - [ ] Comment
-  - [ ] MIDI binding
+- [x] Crear `components/common/SearchInput.tsx`
+- [x] Implementar búsqueda global con debounce
+- [x] Buscar en:
+  - [x] Command name
+  - [x] Comment
+  - [x] MIDI binding (note string)
+  - [x] Conditions
+- [x] Ctrl+F keyboard shortcut to focus search
 - [ ] Highlight resultados
 - [ ] **Tests:**
   - [ ] Test búsqueda
 
-### 15.2 Filters
+### 15.2 Filters ✅
 
-- [ ] Implementar filtros para MappingList
-- [ ] Filtrar por:
-  - [ ] Tipo de comando (categoría)
-  - [ ] Control type
-  - [ ] Con/sin conditions
-  - [ ] Con/sin MIDI binding
-- [ ] Combinar filtros
+- [x] Crear `components/common/FilterPanel.tsx`
+- [x] Implementar filtros para MappingList
+- [x] Filtrar por:
+  - [x] Control type (Button, Fader, Encoder, LED)
+  - [x] Con/sin conditions
+  - [x] Con/sin MIDI binding
+  - [ ] Tipo de comando (categoría) - future enhancement
+- [x] Combinar filtros (AND logic)
+- [x] Filter count badge
+- [x] Clear all filters button
 - [ ] **Tests:**
   - [ ] Test cada filtro
 
@@ -1371,3 +1376,27 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 <!-- Agregar más sesiones según avance el proyecto -->
+
+### Sesión 11 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 15 (Search and Filters) completada:
+    - `SearchInput.tsx` - Debounced search input with Ctrl+F shortcut hint
+    - `FilterPanel.tsx` - Expandable filter controls with badge count
+    - `index.ts` - Barrel exports for common components
+    - Updated `tsiStore.ts` with:
+      - `searchQuery` and `filters` per file
+      - `setSearchQuery()`, `setFilters()`, `clearFilters()` actions
+      - `filterMappings()` helper function
+      - Hooks: `useSearchQuery()`, `useFilters()`, `useHasActiveFilters()`
+    - Updated `MappingList.tsx` with:
+      - Empty state for no results
+      - "Showing X of Y" info when filtered
+    - Updated `useKeyboardShortcuts.ts` with `onSearch` handler for Ctrl+F
+    - Updated `App.tsx` with search bar and filter panel integration
+  - ✅ 406 tests still passing
+- Notas:
+  - Search is case-insensitive and searches command name, comment, MIDI binding, conditions
+  - Filters: Control type (Button/Fader/Encoder/LED), Has conditions (Yes/No/Any), Has MIDI (Yes/No/Any)
+  - All filters combine with AND logic
+  - Per-file search/filter state isolation
+- Bloqueadores: Ninguno
