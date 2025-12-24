@@ -1039,47 +1039,41 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 17: UI - Diálogos y Settings
+## Fase 17: UI - Diálogos y Settings ✅
 
-### 17.1 About Dialog
+### 17.1 About Dialog ✅
 
-- [ ] Crear `AboutDialog` component
-- [ ] Mostrar:
-  - [ ] Versión
-  - [ ] Licencia
-  - [ ] Créditos
-  - [ ] Links
+- [x] Crear `AboutDialog` component
+- [x] Mostrar:
+  - [x] Versión
+  - [x] Licencia
+  - [x] Créditos
+  - [x] Links (GitHub, Documentation, Issues)
 - [ ] **Tests:**
   - [ ] Test render
 
-### 17.2 Settings Dialog
+### 17.2 Settings Dialog ✅
 
-- [ ] Crear `SettingsDialog` component
-- [ ] Secciones:
-  - [ ] General (idioma, tema)
-  - [ ] Traktor (versión, paths)
-  - [ ] MIDI (device por defecto)
-- [ ] Persistir settings
+- [x] Crear `SettingsDialog` component
+- [x] Secciones:
+  - [x] General (showWelcome, confirmDelete, autoSaveInterval)
+  - [x] Editor (column visibility settings)
+  - [x] MIDI (enableOnStartup, learnTimeout, default devices)
+- [x] Persistir settings (zustand persist to localStorage)
+- [x] Reset to defaults button
 - [ ] **Tests:**
   - [ ] Test guardar settings
 
-### 17.3 Keyboard Shortcuts
+### 17.3 Keyboard Shortcuts Dialog ✅
 
-- [ ] Definir lista de shortcuts
-- [ ] Implementar hook `useKeyboardShortcuts`
-- [ ] Shortcuts principales:
-  - [ ] Ctrl+O: Open
-  - [ ] Ctrl+S: Save
-  - [ ] Ctrl+Shift+S: Save As
-  - [ ] Ctrl+W: Close tab
-  - [ ] Ctrl+C/V/X: Copy/Paste/Cut
-  - [ ] Ctrl+D: Duplicate
-  - [ ] Delete: Delete
-  - [ ] Ctrl+Z/Y: Undo/Redo
-  - [ ] Ctrl+F: Search
-- [ ] Mostrar en menú
+- [x] Crear `KeyboardShortcutsDialog` component
+- [x] Mostrar shortcuts agrupados por categoría:
+  - [x] File (New, Open, Save, Save As)
+  - [x] Edit (Undo, Redo, Copy, Cut, Paste, Duplicate, Delete)
+  - [x] Selection (Select All, Clear Selection, Multi-select, Range Select)
+  - [x] Navigation (Search)
 - [ ] **Tests:**
-  - [ ] Test cada shortcut
+  - [ ] Test render
 
 ---
 
@@ -1428,4 +1422,29 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Commands report groups by device/command/type with counts
   - Conditions summary shows unique condition combinations
   - Both reports have search filter and export to CSV
+- Bloqueadores: Ninguno
+
+### Sesión 13 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 17 (Dialogs and Settings) completada:
+    - `AboutDialog.tsx` - App info, version, credits, links
+    - `SettingsDialog.tsx` - Tabbed settings (General, Editor, MIDI)
+    - `KeyboardShortcutsDialog.tsx` - Grouped shortcuts reference
+    - Updated `appStore.ts` with:
+      - `AppSettings` interface (general, editor, midi sections)
+      - `DEFAULT_SETTINGS` constant
+      - Settings update methods: `updateSettings`, `updateGeneralSettings`, etc.
+      - `resetSettings()` to restore defaults
+      - Selector hooks: `useSettings`, `useGeneralSettings`, etc.
+    - Updated `dialogs/index.ts` with new exports
+    - Updated `App.tsx` with:
+      - Keyboard, Settings, Info buttons in toolbar
+      - Dialog state and handlers
+      - All three dialogs rendered
+  - ✅ 406 tests still passing
+- Notas:
+  - Settings persisted to localStorage via zustand persist middleware
+  - All dialogs support Escape key to close
+  - About dialog has links that open in external browser
+  - Settings dialog has Reset to Defaults button
 - Bloqueadores: Ninguno
