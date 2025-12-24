@@ -227,7 +227,9 @@ function parseMidiDefinitionsContainer(reader: BinaryReader): MidiDefinitionsCon
 }
 
 function parseDvst(reader: BinaryReader): DvstData {
-  const unknown1 = reader.readBoolean();
+  // AIDEV-NOTE: ReadBoolBigE in C# reads Int32 (4 bytes), not 1 byte!
+  // See StreamExtensions.cs: return stream.ReadInt32BigE() == 1;
+  const unknown1 = reader.readInt32() === 1;
   const unknown2 = reader.readInt32();
   const unknown3 = reader.readInt32();
   const unknown4 = reader.readInt32();
@@ -379,7 +381,9 @@ function writeMidiDefinitionsContainer(
 }
 
 function writeDvst(writer: BinaryWriter, data: DvstData): void {
-  writer.writeBoolean(data.unknown1);
+  // AIDEV-NOTE: WriteBoolBigE in C# writes Int32 (4 bytes), not 1 byte!
+  // See StreamExtensions.cs: writer.WriteBigE() for bool writes int
+  writer.writeInt32(data.unknown1 ? 1 : 0);
   writer.writeInt32(data.unknown2);
   writer.writeInt32(data.unknown3);
   writer.writeInt32(data.unknown4);

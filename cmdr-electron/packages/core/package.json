@@ -24,6 +24,7 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.1",
     "vitest": "^1.0.0"
   },
   "engines": {
