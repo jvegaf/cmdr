@@ -656,54 +656,71 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 10: UI - Infraestructura (@cmdr/desktop)
+## Fase 10: UI - Infraestructura (@cmdr/desktop) ✅
 
-### 10.1 Theme System
+### 10.1 Theme System ✅
 
-- [ ] Crear `ThemeProvider` component
-- [ ] Implementar hook `useTheme`
-- [ ] Configurar Tailwind para dark mode
-- [ ] Crear `ThemeToggle` component
-- [ ] Persistir preferencia en localStorage
+- [x] Crear `ThemeProvider` component (React Context + localStorage)
+- [x] Implementar hook `useTheme` (theme, setTheme, effectiveTheme)
+- [x] Configurar Tailwind para dark mode (class-based)
+- [x] Crear `ThemeToggle` component (icon changes with theme)
+- [x] Persistir preferencia en localStorage
+- [x] Detectar preferencia del sistema
 - [ ] **Tests:**
   - [ ] Test toggle theme
   - [ ] Test persistencia
 
-### 10.2 Layout Principal
+### 10.2 Layout Principal ✅
 
-- [ ] Crear `AppLayout` component
-- [ ] Implementar sidebar colapsable
-- [ ] Implementar área principal con tabs
+- [x] Crear `AppLayout` component (3-panel layout)
+- [x] Implementar sidebar (device tree - left panel)
+- [x] Implementar área principal (mapping list - center)
+- [x] Implementar panel de propiedades (right panel)
+- [x] Implementar toolbar con acciones de archivo
+- [x] Implementar status bar con info de archivo
+- [ ] Implementar tabs para múltiples archivos
 - [ ] Implementar titlebar personalizado (si aplica)
 - [ ] **Tests:**
   - [ ] Test render layout
 
-### 10.3 Stores (Zustand)
+### 10.3 Stores (Zustand) ✅
 
-- [ ] Crear `useAppStore` - estado global de la app
-  - [ ] recentFiles
-  - [ ] settings
-- [ ] Crear `useTsiStore` - archivos TSI abiertos
-  - [ ] openFiles
-  - [ ] activeFileId
-  - [ ] selectedDeviceId
-  - [ ] selectedMappingIds
-- [ ] Crear `useMidiStore` - estado MIDI
-  - [ ] devices
-  - [ ] isLearning
-  - [ ] lastMessage
+- [x] Crear `useTsiStore` - archivos TSI abiertos
+  - [x] openFiles (Map<string, OpenFile>)
+  - [x] activeFileId
+  - [x] selectedDeviceIndex
+  - [x] selectedMappingIds (Set for multi-select)
+  - [x] File operations: openFile, closeFile, setActiveFile, markDirty/Clean
+  - [x] Selection operations: selectDevice, selectMapping, toggleMappingSelection, selectMappingRange
+  - [x] Selector hooks: useActiveFile, useOpenFiles, useHasDirtyFiles
+- [x] Crear `useMidiStore` - estado MIDI
+  - [x] devices (Map<string, MidiDeviceState>)
+  - [x] isEnabled
+  - [x] learnState (idle/learning/received)
+  - [x] lastMessage
+  - [x] initialize/destroy lifecycle
+  - [x] MIDI Learn: startLearn, cancelLearn
+  - [x] Selector hooks: useMidiReady, useMidiInputs, useMidiLearn
+- [ ] Crear `useAppStore` - estado global de la app (settings, recentFiles)
 - [ ] **Tests:**
   - [ ] Test cada store
 
-### 10.4 IPC Client
+### 10.4 IPC Client ✅
 
-- [ ] Crear `src/renderer/lib/ipc-client.ts`
-- [ ] Implementar wrapper type-safe sobre IPC
-- [ ] Métodos:
-  - [ ] `openFile(path): Promise<TsiFile>`
-  - [ ] `saveFile(path, data): Promise<void>`
-  - [ ] `showOpenDialog(): Promise<string | null>`
-  - [ ] `showSaveDialog(): Promise<string | null>`
+- [x] Crear `src/renderer/lib/ipc-client.ts`
+- [x] Implementar wrapper type-safe sobre IPC
+- [x] Métodos:
+  - [x] `openTsiFile(): Promise<{filePath, tsiFile} | null>`
+  - [x] `readTsiFile(path): Promise<TsiFile>`
+  - [x] `saveTsiFile(tsiFile): Promise<string | null>`
+  - [x] `writeTsiFile(tsiFile, path): Promise<void>`
+- [x] Base64 encoding/decoding for file transfer
+
+### 10.5 UI Components ✅
+
+- [x] Crear `src/renderer/lib/utils.ts` with `cn()` utility (clsx + tailwind-merge)
+- [x] Crear `Button` component with CVA variants (default, secondary, ghost, outline)
+- [x] Barrel exports in `components/ui/index.ts`
 
 ---
 
@@ -1255,6 +1272,28 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - MidiManager uses WebMIDI API (browser/Electron renderer only)
   - Binding utilities bridge @cmdr/midi messages to @cmdr/core MidiBinding
   - Electron IPC integration pending (Phase 9.5)
+- Bloqueadores: Ninguno
+
+### Sesión 8 - 2024-12-24
+- Tareas completadas:
+  - ✅ Fase 10 (UI Infrastructure) mayormente completada:
+    - `ThemeProvider.tsx` - React Context with localStorage, system preference detection
+    - `ThemeToggle.tsx` - Icon-based theme switcher
+    - `tsiStore.ts` - Zustand store for TSI files with multi-select support
+    - `midiStore.ts` - Zustand store for MIDI devices and MIDI Learn
+    - `ipc-client.ts` - Type-safe IPC wrapper with base64 encoding
+    - `Button.tsx` - Button component with CVA variants
+    - `utils.ts` - cn() utility for Tailwind class merging
+    - `App.tsx` - Full 3-panel layout (devices, mappings, properties)
+  - ✅ Fixed @cmdr/core build issues:
+    - Added DOM lib to tsconfig.json
+    - Fixed ArrayBuffer type cast in BinaryReader
+  - ✅ 406 tests still passing
+- Notas:
+  - OpenFile stores Device[] models for easy UI access
+  - Multi-select mappings via Ctrl+click (toggle) and Shift+click (range)
+  - Theme persisted in localStorage, respects system preference
+  - IPC client ready for Electron main process integration
 - Bloqueadores: Ninguno
 
 <!-- Agregar más sesiones según avance el proyecto -->
