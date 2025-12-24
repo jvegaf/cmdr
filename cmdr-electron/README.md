@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 6 Complete - FX Settings system with full effect management
+> **Status:** Phase 10 Complete - UI Infrastructure with theme system, Zustand stores, and IPC client
 
 ## Project Structure
 
@@ -10,7 +10,7 @@ Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React
 cmdr-electron/
 ├── packages/
 │   ├── core/           # @cmdr/core - TSI file parser (TypeScript, no Electron deps)
-│   ├── midi/           # @cmdr/midi - MIDI integration with WebMidi.js
+│   ├── midi/           # @cmdr/midi - MIDI integration with WebMIDI API
 │   └── desktop/        # @cmdr/desktop - Electron + React application
 ├── pnpm-workspace.yaml
 └── package.json
@@ -25,15 +25,18 @@ pnpm install
 # Run tests
 pnpm test
 
-# Run core package tests only
-pnpm --filter @cmdr/core test:run
+# Build all packages
+pnpm build
+
+# Run desktop app in development mode
+pnpm --filter @cmdr/desktop dev
 ```
 
 ## Package Status
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **209 tests passing.**
+The core TSI parsing library. **326 tests passing.**
 
 **Completed:**
 - Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
@@ -67,24 +70,58 @@ The core TSI parsing library. **209 tests passing.**
   - `FxSnapshot` interfaces (buttons + knobs)
   - `loadFxSettings()` / `saveFxSettings()` for XML
   - Helper functions for effect management
-- 209 total tests (40 binary, 45 commands, 38 conditions, 31 FX, 55 integration/roundtrip)
+- **Controls System** with:
+  - Control types: Button, Fader, Encoder, LED
+  - Interaction modes per control type
+  - Encoder modes (3Fh/41h, 7Fh/01h, etc.)
+  - `CONTROL_REGISTRY` for allowed modes
+- **High-Level Models** with:
+  - `Device` class wrapping DeviceData
+  - `Mapping` class with command/condition resolution
+  - MIDI binding parsing and creation
+  - Factory methods and deep copy support
 
-**Pending:**
-- Controls system (Phase 7)
-- High-level models (Phase 8)
-- MIDI integration (Phase 9+)
+### @cmdr/midi ✅
 
-### @cmdr/midi 🚧
+MIDI integration package. **80 tests passing.**
 
-MIDI integration package. Scaffolded with WebMidi.js.
+**Completed:**
+- `MidiManager` - WebMIDI API wrapper with device enumeration
+- `MidiMessage` - MIDI message parsing (Note, CC, Pitch Bend, etc.)
+- `binding-utils` - Convert MIDI messages to Traktor binding format
+- MIDI Learn support
+- Full test coverage with WebMIDI mocking
 
 ### @cmdr/desktop 🚧
 
-Electron + React application. Scaffolded with:
-- electron-vite
-- React 18
-- Tailwind CSS
-- Zustand for state management
+Electron + React application. **Builds successfully.**
+
+**Completed:**
+- electron-vite configuration
+- React 18 with TypeScript
+- Tailwind CSS with dark mode support
+- **Theme System:**
+  - `ThemeProvider` with React Context
+  - localStorage persistence
+  - System preference detection
+  - `ThemeToggle` component
+- **Zustand Stores:**
+  - `useTsiStore` - TSI file state with multi-select support
+  - `useMidiStore` - MIDI device state and MIDI Learn
+- **IPC Client:**
+  - Type-safe Electron IPC wrapper
+  - Base64 encoding for binary file transfer
+- **UI Components:**
+  - `Button` with CVA variants
+  - 3-panel layout (devices, mappings, properties)
+  - Toolbar and status bar
+
+**Pending:**
+- DeviceList component with context menu
+- MappingList DataTable with sorting/filtering
+- Property editors
+- File tabs for multiple files
+- Drag & drop reordering
 
 ## Development
 
@@ -94,11 +131,34 @@ Electron + React application. Scaffolded with:
 # All packages
 pnpm test
 
-# Core package only
+# Specific package
 pnpm --filter @cmdr/core test:run
+pnpm --filter @cmdr/midi test:run
 
 # Watch mode
 pnpm --filter @cmdr/core test
+```
+
+### Type Checking
+
+```bash
+# All packages
+pnpm typecheck
+
+# Desktop package (separate configs for main/preload/renderer)
+pnpm --filter @cmdr/desktop typecheck:web
+pnpm --filter @cmdr/desktop typecheck:node
+```
+
+### Building
+
+```bash
+# Build all packages
+pnpm build
+
+# Build specific package
+pnpm --filter @cmdr/core build
+pnpm --filter @cmdr/desktop build
 ```
 
 ### Test Fixtures
@@ -112,6 +172,7 @@ The `packages/core/__tests__/fixtures/` directory contains real TSI files for te
 | `kontrol s4 mk2*.tsi` | Kontrol S4 MK2 mappings |
 | `s4mk3 override*.tsi` | S4 MK3 factory overrides |
 | `semitone *.tsi` | Semitone value tests |
+| `timecode_mode*.tsi` | Timecode mode examples |
 | ... | And more |
 
 ## Architecture
@@ -150,9 +211,31 @@ DIOM (Root Container)
             └── DCBM (MIDI Note Bindings)
 ```
 
-### Commands System
+### High-Level Models
 
-The command metadata system provides lookup for all Traktor commands:
+```typescript
+import { TsiFile, Device, Mapping } from '@cmdr/core';
+
+// Load TSI file
+const tsi = TsiFile.fromXml(xmlContent);
+
+// Work with high-level models
+for (const deviceData of tsi.devices) {
+  const device = Device.fromRawData(deviceData);
+  
+  console.log(`Device: ${device.typeStr}`);
+  console.log(`Mappings: ${device.mappingCount}`);
+  
+  for (const mapping of device.mappings) {
+    console.log(`  ${mapping.commandName}: ${mapping.midiBinding?.note ?? 'No binding'}`);
+  }
+}
+
+// Serialize back to XML
+const newXml = tsi.toXml();
+```
+
+### Commands System
 
 ```typescript
 import {
@@ -168,29 +251,26 @@ const loopIn = getCommandDescription(KnownCommands.DeckCommon_Loop_LoopInSetCue)
 
 // Get all commands in a category
 const mixerCommands = getCommandsByCategory(Categories.Mixer);
-
-// Check if a command ID is known
-if (isKnownCommand(commandId)) {
-  const desc = getCommandDescription(commandId);
-}
 ```
 
-### Round-Trip Support
-
-The parser supports full round-trip operations:
+### MIDI Integration
 
 ```typescript
-import { TsiFile } from '@cmdr/core';
+import { MidiManager, MidiMessage, midiMessageToBinding } from '@cmdr/midi';
 
-// Load TSI file
-const tsi = TsiFile.fromXml(xmlContent);
+const manager = MidiManager.getInstance();
 
-// Access and modify data
-console.log(`Devices: ${tsi.devices.length}`);
-console.log(`Mappings: ${tsi.mappingCount}`);
+// Enable MIDI
+await manager.enable();
 
-// Serialize back to XML
-const newXml = tsi.toXml();
+// List devices
+const inputs = manager.getInputs();
+const outputs = manager.getOutputs();
+
+// MIDI Learn
+const message = await manager.startMidiLearn({ timeout: 5000 });
+const binding = midiMessageToBinding(message);
+// Returns: { note: "CC.01.64", channel: 1, noteNumber: 64, isCC: true }
 ```
 
 ## Migration Progress
@@ -207,7 +287,20 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | 4. Commands | ✅ Complete | Command metadata system (~500 commands) |
 | 5. Conditions | ✅ Complete | Condition metadata system (85 conditions) |
 | 6. FX Settings | ✅ Complete | Effect management (~40 effects) |
-| 7-21. Controls, UI & More | ⏳ Pending | Controls, React UI, MIDI, packaging |
+| 7. Controls | ✅ Complete | Control types, interaction modes, encoder modes |
+| 8. High-Level Models | ✅ Complete | Device, Mapping classes with full API |
+| 9. MIDI Integration | ✅ Complete | MidiManager, MidiMessage, binding utilities |
+| 10. UI Infrastructure | ✅ Complete | Theme, stores, IPC client, layout |
+| 11-21. UI Components & More | ⏳ Pending | Data components, editors, packaging |
+
+### Test Summary
+
+```
+@cmdr/core:   326 tests passing
+@cmdr/midi:    80 tests passing
+───────────────────────────────
+Total:        406 tests passing
+```
 
 ## License
 
