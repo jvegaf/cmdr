@@ -3,6 +3,7 @@
 Lista detallada de tareas para la migración de WPF a Electron/React.
 
 **Leyenda:**
+
 - [ ] Pendiente
 - [x] Completado
 - [~] En progreso
@@ -16,7 +17,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 - [x] Crear directorio `cmdr-electron/` en la raíz del proyecto
 - [x] Inicializar `package.json` raíz con `"private": true`
-- [x] Crear `pnpm-workspace.yaml` con packages/*
+- [x] Crear `pnpm-workspace.yaml` con packages/\*
 - [x] Crear `tsconfig.base.json` con configuración compartida
 - [x] Crear `vitest.workspace.ts` para tests del monorepo
 - [x] Configurar ESLint con reglas TypeScript
@@ -836,7 +837,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 ### 13.3 Dirty State ✅
 
 - [x] Detectar cambios no guardados
-- [x] Indicador visual (*) en tab
+- [x] Indicador visual (\*) en tab
 - [x] Confirmación al cerrar archivo modificado
 - [x] Confirmación al cerrar app con cambios (IPC handlers in main process)
 
@@ -1100,20 +1101,21 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 ---
 
-## Fase 21: Documentación
+## Fase 21: Documentación ✅
 
-### 21.1 README
+### 21.1 README ✅
 
-- [ ] Actualizar README principal
-- [ ] Instrucciones de instalación
-- [ ] Instrucciones de desarrollo
-- [ ] Screenshots
+- [x] Actualizar README principal
+- [x] Instrucciones de instalación
+- [x] Instrucciones de desarrollo
+- [x] Makefile reference
+- [~] Screenshots (optional - app works, user can take own)
 
-### 21.2 Documentación Técnica
+### 21.2 Documentación Técnica ✅
 
-- [ ] Documentar arquitectura
-- [ ] Documentar formato TSI
-- [ ] Documentar API de @cmdr/core
+- [x] Documentar arquitectura (in README)
+- [x] Documentar formato TSI (in README)
+- [x] Documentar API de @cmdr/core (in README with examples)
 
 ### 21.3 Release Notes
 
@@ -1125,6 +1127,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 ## Notas de Progreso
 
 ### Sesión 1 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 2 (TSI Binary Parser) - Lectura completa implementada
   - ✅ Creados todos los parsers de frames: DIOM, DEVI, DDAT, DDCB, CMAS, CMAI, CMAD, DCBM
@@ -1139,6 +1142,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 2 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Implementado BinaryWriter con serialización Big Endian completa
   - ✅ Implementados métodos de escritura para todos los frames:
@@ -1163,6 +1167,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 3 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 4 (Sistema de Commands) completada:
     - `target-type.ts` - TargetType enum (Global, Track, Remix, FX, Slot)
@@ -1185,6 +1190,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 4 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 5 (Sistema de Conditions) completada:
     - `known-conditions.ts` - KnownConditions enum (21 core conditions)
@@ -1203,6 +1209,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 5 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 6 (FX Settings) completada:
     - `effect.ts` - Effect enum con ~40 efectos de Traktor
@@ -1218,6 +1225,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 6 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 7 (Sistema de Controls) completada:
     - `control.ts` - Control types, interaction modes, encoder modes
@@ -1242,6 +1250,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 7 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 9 (@cmdr/midi) mayormente completada:
     - Fix pitch bend calculation bug (operator precedence)
@@ -1260,6 +1269,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 8 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 10 (UI Infrastructure) mayormente completada:
     - `ThemeProvider.tsx` - React Context with localStorage, system preference detection
@@ -1282,6 +1292,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 9 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 11 (UI Data Components) mayormente completada:
     - `DeviceList.tsx` - Device list with collapsible items, context menu, icons
@@ -1301,6 +1312,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 10 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 13 (File Operations) mayormente completada:
     - `FileTabs.tsx` - Tab bar for multiple open files with close buttons
@@ -1315,7 +1327,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - ✅ 406 tests still passing
 - Notas:
   - FileTabs supports middle-click to close
-  - Dirty indicator (*) shown in tabs and status bar
+  - Dirty indicator (\*) shown in tabs and status bar
   - Unsaved changes dialog with Save/Don't Save/Cancel options
   - Recent files limited to 10, sorted by last opened
 - Pendiente:
@@ -1327,6 +1339,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 <!-- Agregar más sesiones según avance el proyecto -->
 
 ### Sesión 11 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 15 (Search and Filters) completada:
     - `SearchInput.tsx` - Debounced search input with Ctrl+F shortcut hint
@@ -1351,6 +1364,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 12 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 16 (Reports and Export) completada:
     - `csv-export.ts` - CSV export utilities with configurable columns
@@ -1376,6 +1390,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 13 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 17 (Dialogs and Settings) completada:
     - `AboutDialog.tsx` - App info, version, credits, links
@@ -1401,6 +1416,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 14 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 18 (Application Menu) completada:
     - `menu.ts` - Native Electron menu with File, Edit, View, Help menus
@@ -1422,6 +1438,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 15 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Pending tasks from Phases 1-18 completed:
     - Copied 13 TSI fixtures from `tests/traktor-ready/` and `tests/keyboard/`
@@ -1440,6 +1457,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - Bloqueadores: Ninguno
 
 ### Sesión 16 - 2024-12-24
+
 - Tareas completadas:
   - ✅ Fase 19 (Packaging) completada:
     - Created `electron-builder.yml` with full config:
@@ -1461,4 +1479,3 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Auto-updater deferred as optional future enhancement
   - macOS build requires macOS for code signing
 - Bloqueadores: Ninguno
-

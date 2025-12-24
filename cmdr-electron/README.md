@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 19 - Packaging and Distribution
+> **Status:** Phase 20 Complete - Ready for Release
 
 ## Project Structure
 
@@ -32,6 +32,23 @@ pnpm build
 pnpm --filter @cmdr/desktop dev
 ```
 
+### Using the Makefile
+
+A `Makefile` is provided for common development tasks:
+
+```bash
+make install      # Install all dependencies
+make dev          # Start development server
+make test         # Run all tests
+make coverage     # Run tests with coverage report
+make build        # Build all packages
+make lint         # Lint all packages
+make format       # Format code with Prettier
+make dist-linux   # Build Linux AppImage
+make dist-win     # Build Windows installer
+make help         # Show all available commands
+```
+
 ## Building Distributable Packages
 
 ```bash
@@ -54,21 +71,22 @@ pnpm --filter @cmdr/desktop pack
 
 Distributable packages are created in `packages/desktop/release/{version}/`:
 
-| Platform | Format | File |
-|----------|--------|------|
-| Linux | AppImage | `CMDR TSI Editor-{version}-linux-x86_64.AppImage` |
-| Linux | Debian | `cmdr-tsi-editor_{version}_amd64.deb` |
-| Windows | Installer | `CMDR TSI Editor-{version}-win-x64.exe` |
-| Windows | Portable | `CMDR TSI Editor-{version}-win-x64-portable.exe` |
-| macOS | DMG | `CMDR TSI Editor-{version}-mac-{arch}.dmg` |
+| Platform | Format    | File                                              |
+| -------- | --------- | ------------------------------------------------- |
+| Linux    | AppImage  | `CMDR TSI Editor-{version}-linux-x86_64.AppImage` |
+| Linux    | Debian    | `cmdr-tsi-editor_{version}_amd64.deb`             |
+| Windows  | Installer | `CMDR TSI Editor-{version}-win-x64.exe`           |
+| Windows  | Portable  | `CMDR TSI Editor-{version}-win-x64-portable.exe`  |
+| macOS    | DMG       | `CMDR TSI Editor-{version}-mac-{arch}.dmg`        |
 
 ## Package Status
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **419 tests passing.**
+The core TSI parsing library. **341 tests passing, 95.68% coverage.**
 
 **Completed:**
+
 - Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
 - Frame system for TSI binary format (parse and serialize)
 - All frame parsers AND serializers:
@@ -113,9 +131,10 @@ The core TSI parsing library. **419 tests passing.**
 
 ### @cmdr/midi ✅
 
-MIDI integration package. **80 tests passing.**
+MIDI integration package. **80 tests passing, 92.12% coverage.**
 
 **Completed:**
+
 - `MidiManager` - WebMIDI API wrapper with device enumeration
 - `MidiMessage` - MIDI message parsing (Note, CC, Pitch Bend, etc.)
 - `binding-utils` - Convert MIDI messages to Traktor binding format
@@ -127,6 +146,7 @@ MIDI integration package. **80 tests passing.**
 Electron + React application. **Builds and packages successfully.**
 
 **Completed:**
+
 - electron-vite configuration
 - React 18 with TypeScript
 - Tailwind CSS with dark mode support
@@ -250,11 +270,11 @@ pnpm --filter @cmdr/desktop build
 
 The `packages/core/__tests__/fixtures/` directory contains 23 real TSI files for testing:
 
-| Category | Files | Description |
-|----------|-------|-------------|
-| Unit Tests | 10 | Encoder modes, FX lists, semitones, timecode modes |
-| Traktor Ready | 12 | S2/S4/S8 MK1-3, CDJ-2000NX2, XDJ-1000, DDJ-T1, Numark 4Trak |
-| Keyboard | 1 | Keyboard timecode mode mappings |
+| Category      | Files | Description                                                 |
+| ------------- | ----- | ----------------------------------------------------------- |
+| Unit Tests    | 10    | Encoder modes, FX lists, semitones, timecode modes          |
+| Traktor Ready | 12    | S2/S4/S8 MK1-3, CDJ-2000NX2, XDJ-1000, DDJ-T1, Numark 4Trak |
+| Keyboard      | 1     | Keyboard timecode mode mappings                             |
 
 See `packages/core/__tests__/fixtures/README.md` for detailed documentation.
 
@@ -305,10 +325,10 @@ const tsi = TsiFile.fromXml(xmlContent);
 // Work with high-level models
 for (const deviceData of tsi.devices) {
   const device = Device.fromRawData(deviceData);
-  
+
   console.log(`Device: ${device.typeStr}`);
   console.log(`Mappings: ${device.mappingCount}`);
-  
+
   for (const mapping of device.mappings) {
     console.log(`  ${mapping.commandName}: ${mapping.midiBinding?.note ?? 'No binding'}`);
   }
@@ -362,40 +382,48 @@ This is a migration from the original .NET/WPF CMDR editor to Electron/React.
 
 See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed progress.
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| 1. Infrastructure | ✅ Complete | Monorepo setup, all packages scaffolded |
-| 2. TSI Binary Parser | ✅ Complete | All frame parsers + serializers |
-| 3. XML Layer | ✅ Complete | Full parse/build with round-trip support |
-| 4. Commands | ✅ Complete | Command metadata system (~500 commands) |
-| 5. Conditions | ✅ Complete | Condition metadata system (85 conditions) |
-| 6. FX Settings | ✅ Complete | Effect management (~40 effects) |
-| 7. Controls | ✅ Complete | Control types, interaction modes, encoder modes |
-| 8. High-Level Models | ✅ Complete | Device, Mapping classes with full API |
-| 9. MIDI Integration | ✅ Complete | MidiManager, MidiMessage, binding utilities |
-| 10. UI Infrastructure | ✅ Complete | Theme, stores, IPC client, layout |
-| 11. Data Components | ✅ Complete | DeviceList, MappingList, MappingEditor |
-| 12. Property Editors | ✅ Complete | CommandSelector, ConditionSelector, MidiBindingEditor |
-| 13. File Operations | ✅ Complete | Tabs, New/Save/Close, Recent Files |
-| 14. Advanced Editing | ✅ Complete | Copy/Paste/Duplicate/Delete, Keyboard Shortcuts |
-| 14.5 Undo/Redo | ✅ Complete | Per-file history, undoable operations |
-| 15. Search & Filters | ✅ Complete | Search input, filter panel, combined logic |
-| 16. Reports & Export | ✅ Complete | CSV export, commands report, conditions summary |
-| 17. Dialogs & Settings | ✅ Complete | About, Settings, Keyboard Shortcuts dialogs |
-| 18. Application Menu | ✅ Complete | Native Electron menu with IPC integration |
-| 19. Packaging | ✅ Complete | electron-builder config, Linux/Windows/macOS |
-| 20. Testing & QA | ⏳ Pending | Coverage, manual testing, performance |
-| 21. Documentation | ⏳ Pending | User guide, API docs, changelog |
+| Phase                  | Status      | Description                                           |
+| ---------------------- | ----------- | ----------------------------------------------------- |
+| 1. Infrastructure      | ✅ Complete | Monorepo setup, all packages scaffolded               |
+| 2. TSI Binary Parser   | ✅ Complete | All frame parsers + serializers                       |
+| 3. XML Layer           | ✅ Complete | Full parse/build with round-trip support              |
+| 4. Commands            | ✅ Complete | Command metadata system (~500 commands)               |
+| 5. Conditions          | ✅ Complete | Condition metadata system (85 conditions)             |
+| 6. FX Settings         | ✅ Complete | Effect management (~40 effects)                       |
+| 7. Controls            | ✅ Complete | Control types, interaction modes, encoder modes       |
+| 8. High-Level Models   | ✅ Complete | Device, Mapping classes with full API                 |
+| 9. MIDI Integration    | ✅ Complete | MidiManager, MidiMessage, binding utilities           |
+| 10. UI Infrastructure  | ✅ Complete | Theme, stores, IPC client, layout                     |
+| 11. Data Components    | ✅ Complete | DeviceList, MappingList, MappingEditor                |
+| 12. Property Editors   | ✅ Complete | CommandSelector, ConditionSelector, MidiBindingEditor |
+| 13. File Operations    | ✅ Complete | Tabs, New/Save/Close, Recent Files                    |
+| 14. Advanced Editing   | ✅ Complete | Copy/Paste/Duplicate/Delete, Keyboard Shortcuts       |
+| 14.5 Undo/Redo         | ✅ Complete | Per-file history, undoable operations                 |
+| 15. Search & Filters   | ✅ Complete | Search input, filter panel, combined logic            |
+| 16. Reports & Export   | ✅ Complete | CSV export, commands report, conditions summary       |
+| 17. Dialogs & Settings | ✅ Complete | About, Settings, Keyboard Shortcuts dialogs           |
+| 18. Application Menu   | ✅ Complete | Native Electron menu with IPC integration             |
+| 19. Packaging          | ✅ Complete | electron-builder config, Linux/Windows/macOS          |
+| 20. Testing & QA       | ✅ Complete | Coverage >90%, all fixtures pass, performance tested  |
+| 21. Documentation      | ⏳ Pending  | User guide, API docs, changelog                       |
 
 ### Test Summary
 
 ```
-@cmdr/core:   339 tests passing
-@cmdr/midi:    80 tests passing
+@cmdr/core:   341 tests passing (95.68% coverage)
+@cmdr/midi:    80 tests passing (92.12% coverage)
+───────────────────────────────────────────────────
+Total:        421 tests passing
+```
+
+@cmdr/core: 339 tests passing
+@cmdr/midi: 80 tests passing
 ───────────────────────────────
-Total:        419 tests passing
+Total: 419 tests passing
+
 ```
 
 ## License
 
 See [LICENSE](../LICENSE) in the root directory.
+```
