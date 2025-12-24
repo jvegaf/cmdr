@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 14.5 Complete - Full Advanced Editing with Undo/Redo System
+> **Status:** Phase 16 Complete - Reports and CSV Export
 
 ## Project Structure
 
@@ -143,15 +143,26 @@ Electron + React application. **Builds successfully.**
   - Ctrl+N/O/S: File operations
   - Ctrl+C/X/V/D: Clipboard operations
   - Ctrl+Z/Y: Undo/Redo
+  - Ctrl+F: Focus search
   - Ctrl+A: Select all
   - Delete/Backspace: Delete selected
   - Escape: Clear selection
+- **Search and Filters (Phase 15):**
+  - `SearchInput` - Debounced search with Ctrl+F shortcut
+  - `FilterPanel` - Control type, conditions, MIDI filters
+  - Filter mappings by command name, comment, MIDI binding, conditions
+  - Combined AND logic for filters
+- **Reports and Export (Phase 16):**
+  - `ExportDialog` - CSV export with configurable columns
+  - `CommandsReport` - Commands overview with grouping and counts
+  - `ConditionsSummary` - Unique condition combinations summary
+  - Export to CSV from reports
+  - Sortable tables with search filters
 
 **Pending:**
-- Search and filtering (Phase 15)
-- Reports and export (Phase 16)
-- Drag & drop reordering
-- Context menus
+- Dialogs and Settings (Phase 17)
+- Application Menu (Phase 18)
+- Packaging and Distribution (Phase 19)
 
 ## Development
 
@@ -326,7 +337,9 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | 13. File Operations | ✅ Complete | Tabs, New/Save/Close, Recent Files |
 | 14. Advanced Editing | ✅ Complete | Copy/Paste/Duplicate/Delete, Keyboard Shortcuts |
 | 14.5 Undo/Redo | ✅ Complete | Per-file history, undoable operations |
-| 15-21. Search & More | ⏳ Pending | Search, Reports, Packaging |
+| 15. Search & Filters | ✅ Complete | Search input, filter panel, combined logic |
+| 16. Reports & Export | ✅ Complete | CSV export, commands report, conditions summary |
+| 17-21. Settings & More | ⏳ Pending | Dialogs, Menu, Packaging |
 
 ### Test Summary
 
