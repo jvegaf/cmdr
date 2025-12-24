@@ -2,7 +2,7 @@
 
 Cross-platform TSI file editor for NI Traktor Pro, built with Electron and React.
 
-> **Status:** Phase 2 Complete - TSI Binary Parser fully implemented
+> **Status:** Phase 2 & 3 Complete - TSI Binary Parser with full round-trip support
 
 ## Project Structure
 
@@ -33,19 +33,28 @@ pnpm --filter @cmdr/core test:run
 
 ### @cmdr/core ✅
 
-The core TSI parsing library. **71 tests passing.**
+The core TSI parsing library. **95 tests passing.**
 
 **Completed:**
-- Binary I/O (Big Endian) - BinaryReader/BinaryWriter
-- Frame system for TSI binary format
-- All frame parsers: DIOM, DEVI, DDAT, DDCB, CMAS, CMAI, CMAD, DCBM
-- XML parser for TSI envelope
-- High-level TsiFile model
+- Binary I/O (Big Endian) - BinaryReader/BinaryWriter with full read/write support
+- Frame system for TSI binary format (parse and serialize)
+- All frame parsers AND serializers:
+  - `DIOM` - DeviceMappingsContainer (root)
+  - `DEVI` - Device
+  - `DDAT` - DeviceData
+  - `DDCB` - MappingsContainer
+  - `CMAS` - Mappings list
+  - `CMAI` - Mapping
+  - `CMAD` - MappingSettings
+  - `DCBM` - MidiNoteBinding
+- XML parser with `parseTsiXml()` and `buildTsiXml()`
+- High-level `TsiFile` model with `fromXml()` and `toXml()`
+- Full round-trip support (parse → modify → serialize)
+- 24 round-trip tests verifying data integrity
 - Integration tests with 10 real TSI fixtures
 
 **Pending:**
-- Serialization (write methods) for round-trip support
-- Full command/condition system
+- Full command/condition system (Phase 4-5)
 - MidiDefinition parsing
 
 ### @cmdr/midi 🚧
@@ -124,6 +133,24 @@ DIOM (Root Container)
             └── DCBM (MIDI Note Bindings)
 ```
 
+### Round-Trip Support
+
+The parser supports full round-trip operations:
+
+```typescript
+import { TsiFile } from '@cmdr/core';
+
+// Load TSI file
+const tsi = TsiFile.fromXml(xmlContent);
+
+// Access and modify data
+console.log(`Devices: ${tsi.devices.length}`);
+console.log(`Mappings: ${tsi.mappingCount}`);
+
+// Serialize back to XML
+const newXml = tsi.toXml();
+```
+
 ## Migration Progress
 
 This is a migration from the original .NET/WPF CMDR editor to Electron/React.
@@ -133,8 +160,8 @@ See [MIGRATION_TASKS.md](../docs/development/MIGRATION_TASKS.md) for detailed pr
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 1. Infrastructure | ✅ Complete | Monorepo setup, all packages scaffolded |
-| 2. TSI Binary Parser | ✅ Complete | All frame parsers implemented, 71 tests |
-| 3. XML Layer | 🚧 Partial | Basic parsing done, needs full model |
+| 2. TSI Binary Parser | ✅ Complete | All frame parsers + serializers, 95 tests |
+| 3. XML Layer | ✅ Complete | Full parse/build with round-trip support |
 | 4. Commands | ⏳ Pending | Command system |
 | 5. Conditions | ⏳ Pending | Condition system |
 | 6-21. UI & More | ⏳ Pending | React UI, MIDI, packaging |
