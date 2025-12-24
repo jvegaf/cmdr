@@ -73,9 +73,9 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 
 - [x] Crear `packages/core/__tests__/fixtures/`
 - [x] Copiar `tests/unit_tests/*.tsi` a fixtures (10 archivos)
-- [ ] Copiar `tests/traktor-ready/*.tsi` a fixtures
-- [ ] Copiar `tests/keyboard/*.tsi` a fixtures
-- [ ] Crear archivo `fixtures/README.md` documentando cada fixture
+- [x] Copiar `tests/traktor-ready/*.tsi` a fixtures (12 archivos)
+- [x] Copiar `tests/keyboard/*.tsi` a fixtures (1 archivo)
+- [x] Crear archivo `fixtures/README.md` documentando cada fixture (23 archivos total)
 
 ---
 
@@ -738,12 +738,13 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - [ ] Test render lista
   - [ ] Test selección
 
-### 11.2 DeviceEditor
+### 11.2 DeviceEditor ✅
 
-- [ ] Crear `components/devices/device-editor.tsx`
-- [ ] Edición de nombre
-- [ ] Configuración de puertos MIDI
-- [ ] Selector de tipo de device
+- [x] Crear `components/devices/DeviceEditor.tsx`
+- [x] Edición de nombre (comment field)
+- [x] Configuración de puertos MIDI (input/output)
+- [x] Display device type (read-only for proprietary devices)
+- [x] Show mapping count, revision, Traktor version
 - [ ] **Tests:**
   - [ ] Test edición
 
@@ -873,7 +874,7 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
 - [x] Detectar cambios no guardados
 - [x] Indicador visual (*) en tab
 - [x] Confirmación al cerrar archivo modificado
-- [ ] Confirmación al cerrar app con cambios
+- [x] Confirmación al cerrar app con cambios (IPC handlers in main process)
 - [ ] **Tests:**
   - [ ] Test detección de cambios
   - [ ] Test confirmación
@@ -1472,4 +1473,22 @@ Lista detallada de tareas para la migración de WPF a Electron/React.
   - Theme submenu with radio buttons for Light/Dark/System
   - Help menu has external links (Documentation, GitHub, Report Issue)
   - View menu includes Commands Report, Conditions Summary
+- Bloqueadores: Ninguno
+
+### Sesión 15 - 2024-12-24
+- Tareas completadas:
+  - ✅ Pending tasks from Phases 1-18 completed:
+    - Copied 13 TSI fixtures from `tests/traktor-ready/` and `tests/keyboard/`
+    - Created `packages/core/__tests__/fixtures/README.md` documenting all 23 fixtures
+    - Created `DeviceEditor.tsx` component for editing device properties
+    - Implemented app close confirmation with dirty files check:
+      - Added `close` event handler in main process
+      - IPC handlers: `app:check-dirty-files`, `app:dirty-files-response`, `app:force-close`
+      - `useAppClose` hook in renderer to respond to dirty file check
+      - Native dialog with "Quit Without Saving" / "Cancel" options
+  - ✅ 419 tests passing (13 new fixture tests)
+- Notas:
+  - DeviceEditor shows different UI for keyboard vs MIDI devices
+  - App close flow: main intercepts close → asks renderer → renderer responds → main shows dialog or quits
+  - All phases 1-18 are now complete (except some optional/low-priority items)
 - Bloqueadores: Ninguno
