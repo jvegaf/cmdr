@@ -1,0 +1,56 @@
+﻿<UserControl x:Class="cmdr.Editor.Views.DeviceListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/expression/2010/interactivity"
+             xmlns:behaviors="clr-namespace:cmdr.Editor.Behaviors"
+             xmlns:behaviorsWpfControls="clr-namespace:cmdr.WpfControls.Behaviors;assembly=cmdr.WpfControls"
+             xmlns:dropDownButton="clr-namespace:cmdr.WpfControls.DropDownButton;assembly=cmdr.WpfControls"
+             xmlns:conv="clr-namespace:cmdr.Editor.Converters"
+             xmlns:customListBox="clr-namespace:cmdr.WpfControls.CustomListBox;assembly=cmdr.WpfControls"
+             mc:Ignorable="d" 
+             d:DesignHeight="400" d:DesignWidth="300">
+    <UserControl.Resources>
+        <conv:PluralizationConverter x:Key="pluralizationConverter"/>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+        <customListBox:CustomListBox Grid.Row="0" 
+                                     x:Name="lbDevices" 
+                                     ItemsSource="{Binding Devices, Mode=OneWay}" 
+                                     SelectedItem="{Binding SelectedDevice}"
+                                     behaviors:AttachedBehaviors.DragOverBehaviour="{Binding DragOverCommand, Mode=OneTime}"
+                                     behaviorsWpfControls:DraggableRowsBehavior.DropAction="{Binding DropCommand, Mode=OneTime}"
+                                     >
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid x:Name="lbiGrid">
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition Height="15"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" HorizontalAlignment="Stretch" TextWrapping="Wrap" 
+                                   Text="{Binding Name, Mode=OneWay}"/>
+                        <TextBlock Grid.Row="1" HorizontalAlignment="Stretch" TextWrapping="Wrap" FontSize="10" TextAlignment="Right"
+                                   Text="{Binding Mappings.Count, Converter={StaticResource pluralizationConverter}, ConverterParameter=mapping, Mode=OneWay}"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </customListBox:CustomListBox>
+
+        <DockPanel Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Top" LastChildFill="True" Margin="0,5">
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                <dropDownButton:DropDownButton Content="+" Height="20" Width="20" MenuPlacement="Right" 
+                                               ItemsSource="{Binding AddDeviceMenuItems, Mode=OneTime}"
+                                               Command="{Binding AddDeviceCommand, Mode=OneTime}"/>
+                <Button Margin="5,0,0,0" Content="-" Height="20" Width="20" Command="{Binding RemoveDeviceCommand, Mode=OneTime}" />
+            </StackPanel>
+            <TextBlock DockPanel.Dock="Right" HorizontalAlignment="Right" FontSize="11" Text="{Binding Path=Items.Count, ElementName=lbDevices, Mode=OneWay, Converter={StaticResource pluralizationConverter}, ConverterParameter=device}" />
+        </DockPanel>
+    </Grid>
+
+</UserControl>

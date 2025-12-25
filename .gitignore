@@ -1,4 +1,3 @@
-# git ignore file
 bin/
 obj/
 *.suo
@@ -7,4 +6,59 @@ cmdr/packages/
 .vs/
 tests/tmp/
 legacy/cmdr-codeplex-archive/
-cmdr-electron/packages/desktop/release/
+packages/desktop/release/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Electron-vite
+.electron-vite/
+
+# Electron-builder release
+release/
+
+# AUR build artifacts
+aur/*/pkg/
+aur/*/src/
+aur/*/*.pkg.tar.zst
+
+# Test coverage
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Lock files (we use pnpm-lock.yaml only)
+package-lock.json
+yarn.lock
