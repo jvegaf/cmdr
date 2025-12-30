@@ -3,6 +3,8 @@
  *
  * AIDEV-NOTE: Handles communication between renderer and main process.
  * File operations (open/save TSI files) run here with full Node.js access.
+ *
+ * Phase 19: Added folder and file picker dialogs for settings.
  */
 
 import { ipcMain, dialog } from 'electron';
@@ -36,23 +38,26 @@ export function registerIpcHandlers(): void {
   });
 
   // Save file dialog
-  ipcMain.handle('dialog:saveFile', async (_event, data: { content: string; defaultPath?: string }) => {
-    const result = await dialog.showSaveDialog({
-      defaultPath: data.defaultPath,
-      filters: [
-        { name: 'TSI Files', extensions: ['tsi'] },
-        { name: 'All Files', extensions: ['*'] },
-      ],
-    });
+  ipcMain.handle(
+    'dialog:saveFile',
+    async (_event, data: { content: string; defaultPath?: string }) => {
+      const result = await dialog.showSaveDialog({
+        defaultPath: data.defaultPath,
+        filters: [
+          { name: 'TSI Files', extensions: ['tsi'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
 
-    if (result.canceled || !result.filePath) {
-      return null;
+      if (result.canceled || !result.filePath) {
+        return null;
+      }
+
+      const buffer = Buffer.from(data.content, 'base64');
+      await writeFile(result.filePath, buffer);
+      return result.filePath;
     }
-
-    const buffer = Buffer.from(data.content, 'base64');
-    await writeFile(result.filePath, buffer);
-    return result.filePath;
-  });
+  );
 
   // Read file directly (for recent files)
   ipcMain.handle('file:read', async (_event, filePath: string) => {
@@ -69,21 +74,72 @@ export function registerIpcHandlers(): void {
 
   // Save CSV file dialog
   // AIDEV-NOTE: Phase 16 - CSV export functionality
-  ipcMain.handle('dialog:saveCsv', async (_event, data: { content: string; defaultPath?: string }) => {
-    const result = await dialog.showSaveDialog({
-      defaultPath: data.defaultPath,
-      filters: [
-        { name: 'CSV Files', extensions: ['csv'] },
-        { name: 'All Files', extensions: ['*'] },
-      ],
-    });
+  ipcMain.handle(
+    'dialog:saveCsv',
+    async (_event, data: { content: string; defaultPath?: string }) => {
+      const result = await dialog.showSaveDialog({
+        defaultPath: data.defaultPath,
+        filters: [
+          { name: 'CSV Files', extensions: ['csv'] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
 
-    if (result.canceled || !result.filePath) {
-      return null;
+      if (result.canceled || !result.filePath) {
+        return null;
+      }
+
+      // Write as UTF-8 text (content already has BOM)
+      await writeFile(result.filePath, data.content, 'utf-8');
+      return result.filePath;
     }
+  );
 
-    // Write as UTF-8 text (content already has BOM)
-    await writeFile(result.filePath, data.content, 'utf-8');
-    return result.filePath;
-  });
+  // ============================================================================
+  // Phase 19: Folder/File Picker Dialogs for Settings
+  // ============================================================================
+
+  // Select a folder
+  ipcMain.handle(
+    'dialog:selectFolder',
+    async (_event, data?: { defaultPath?: string; title?: string }) => {
+      const result = await dialog.showOpenDialog({
+        title: data?.title ?? 'Select Folder',
+        defaultPath: data?.defaultPath,
+        properties: ['openDirectory', 'createDirectory'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      return result.filePaths[0] ?? null;
+    }
+  );
+
+  // Select a file (generic, for any file type)
+  ipcMain.handle(
+    'dialog:selectFile',
+    async (
+      _event,
+      data?: {
+        defaultPath?: string;
+        title?: string;
+        filters?: { name: string; extensions: string[] }[];
+      }
+    ) => {
+      const result = await dialog.showOpenDialog({
+        title: data?.title ?? 'Select File',
+        defaultPath: data?.defaultPath,
+        properties: ['openFile'],
+        filters: data?.filters ?? [{ name: 'All Files', extensions: ['*'] }],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      return result.filePaths[0] ?? null;
+    }
+  );
 }

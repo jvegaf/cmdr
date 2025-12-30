@@ -8,6 +8,7 @@
  *
  * Phase 18: Added menu action listener support.
  * Phase 18.1: Added app close handlers for dirty file confirmation.
+ * Phase 19: Added folder/file picker dialogs for settings.
  */
 
 import { TsiFile } from '@cmdr/core';
@@ -27,6 +28,12 @@ export interface MenuActionPayload {
   payload?: unknown;
 }
 
+// File filter for file picker
+export interface FileFilter {
+  name: string;
+  extensions: string[];
+}
+
 interface ElectronAPI {
   openFile: () => Promise<FileData | null>;
   saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
@@ -40,6 +47,13 @@ interface ElectronAPI {
   onCheckDirtyFiles: (callback: () => void) => () => void;
   respondDirtyFiles: (hasDirtyFiles: boolean) => void;
   forceClose: () => void;
+  // Phase 19: Folder/File picker dialogs for settings
+  selectFolder: (defaultPath?: string, title?: string) => Promise<string | null>;
+  selectFile: (
+    defaultPath?: string,
+    title?: string,
+    filters?: FileFilter[]
+  ) => Promise<string | null>;
 }
 
 // ============================================================================
@@ -217,6 +231,33 @@ export const ipcClient = {
     const api = getElectronAPI();
     return api.saveCsv(csvContent, defaultPath);
   },
+
+  /**
+   * Select a folder using the system folder picker dialog
+   * @param defaultPath Optional default path to start from
+   * @param title Optional dialog title
+   * @returns The selected folder path, or null if cancelled
+   */
+  async selectFolder(defaultPath?: string, title?: string): Promise<string | null> {
+    const api = getElectronAPI();
+    return api.selectFolder(defaultPath, title);
+  },
+
+  /**
+   * Select a file using the system file picker dialog
+   * @param defaultPath Optional default path to start from
+   * @param title Optional dialog title
+   * @param filters Optional file filters
+   * @returns The selected file path, or null if cancelled
+   */
+  async selectFile(
+    defaultPath?: string,
+    title?: string,
+    filters?: FileFilter[]
+  ): Promise<string | null> {
+    const api = getElectronAPI();
+    return api.selectFile(defaultPath, title, filters);
+  },
 };
 
 // ============================================================================
@@ -235,9 +276,7 @@ export function useIsElectron(): boolean {
  * @param callback Function to call when a menu action is triggered
  * @returns Unsubscribe function
  */
-export function subscribeToMenuActions(
-  callback: (payload: MenuActionPayload) => void
-): () => void {
+export function subscribeToMenuActions(callback: (payload: MenuActionPayload) => void): () => void {
   try {
     const api = getElectronAPI();
     return api.onMenuAction(callback);

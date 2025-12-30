@@ -6,6 +6,7 @@
  *
  * Phase 18: Added menu action listener for application menu integration.
  * Phase 18.1: Added app close handlers for dirty file confirmation.
+ * Phase 19: Added folder/file picker dialogs for settings.
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
@@ -21,6 +22,12 @@ export interface MenuActionPayload {
   payload?: unknown;
 }
 
+// File filter for file picker
+export interface FileFilter {
+  name: string;
+  extensions: string[];
+}
+
 export interface ElectronAPI {
   openFile: () => Promise<FileData | null>;
   saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
@@ -34,6 +41,13 @@ export interface ElectronAPI {
   onCheckDirtyFiles: (callback: () => void) => () => void;
   respondDirtyFiles: (hasDirtyFiles: boolean) => void;
   forceClose: () => void;
+  // Phase 19: Folder/File picker dialogs for settings
+  selectFolder: (defaultPath?: string, title?: string) => Promise<string | null>;
+  selectFile: (
+    defaultPath?: string,
+    title?: string,
+    filters?: FileFilter[]
+  ) => Promise<string | null>;
 }
 
 const electronAPI: ElectronAPI = {
@@ -41,11 +55,9 @@ const electronAPI: ElectronAPI = {
   saveFile: (content, defaultPath) =>
     ipcRenderer.invoke('dialog:saveFile', { content, defaultPath }),
   readFile: (filePath) => ipcRenderer.invoke('file:read', filePath),
-  writeFile: (filePath, content) =>
-    ipcRenderer.invoke('file:write', { filePath, content }),
+  writeFile: (filePath, content) => ipcRenderer.invoke('file:write', { filePath, content }),
   // Phase 16: CSV export
-  saveCsv: (content, defaultPath) =>
-    ipcRenderer.invoke('dialog:saveCsv', { content, defaultPath }),
+  saveCsv: (content, defaultPath) => ipcRenderer.invoke('dialog:saveCsv', { content, defaultPath }),
   // Phase 18: Menu action listener
   // Returns an unsubscribe function
   onMenuAction: (callback) => {
@@ -72,6 +84,11 @@ const electronAPI: ElectronAPI = {
   forceClose: () => {
     ipcRenderer.send('app:force-close');
   },
+  // Phase 19: Folder/File picker dialogs for settings
+  selectFolder: (defaultPath, title) =>
+    ipcRenderer.invoke('dialog:selectFolder', { defaultPath, title }),
+  selectFile: (defaultPath, title, filters) =>
+    ipcRenderer.invoke('dialog:selectFile', { defaultPath, title, filters }),
 };
 
 contextBridge.exposeInMainWorld('electron', electronAPI);
