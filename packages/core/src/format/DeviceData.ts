@@ -240,6 +240,35 @@ function parseDvst(reader: BinaryReader): DvstData {
 }
 
 /**
+ * Helper to read an optional frame by peeking at the FourCC
+ *
+ * AIDEV-NOTE: This DRYs up the repetitive pattern of:
+ * 1. Check !reader.isEof
+ * 2. Peek at FourCC
+ * 3. If matches, read header and create slice reader
+ * 4. Parse content with parser function
+ *
+ * @param reader The binary reader positioned before potential frame
+ * @param expectedFourCC The expected FourCC to match
+ * @param parser Function to parse the frame content
+ * @returns Parsed data or undefined if frame not present
+ */
+function readOptionalFrame<T>(
+  reader: BinaryReader,
+  expectedFourCC: string,
+  parser: (frameReader: BinaryReader) => T
+): T | undefined {
+  if (reader.isEof) return undefined;
+
+  const nextFourCC = reader.peekFourCC();
+  if (nextFourCC !== expectedFourCC) return undefined;
+
+  const header = Frame.readHeader(reader);
+  const frameReader = reader.slice(header.size);
+  return parser(frameReader);
+}
+
+/**
  * Parse DeviceData from a BinaryReader
  * Reader should be positioned at start of DDAT frame data (after header)
  */
@@ -266,15 +295,13 @@ export function parseDeviceData(reader: BinaryReader): DeviceDataData {
     ports: { inPortName: DEFAULT_PORT, outPortName: DEFAULT_PORT },
   };
 
-  // AIDEV-NOTE: Optional frames are detected by peeking at FourCC
+  // AIDEV-NOTE: Optional frames are detected by peeking at FourCC using readOptionalFrame helper
   // Check for optional DDIC (comment)
-  if (!reader.isEof) {
-    const nextFourCC = reader.peekFourCC();
-    if (nextFourCC === MAPPING_FILE_COMMENT_FRAME_ID) {
-      const commentHeader = Frame.readHeader(reader);
-      const commentReader = reader.slice(commentHeader.size);
-      data.comment = commentReader.readWideString();
-    }
+  const comment = readOptionalFrame(reader, MAPPING_FILE_COMMENT_FRAME_ID, (r) =>
+    r.readWideString()
+  );
+  if (comment !== undefined) {
+    data.comment = comment;
   }
 
   // Read required DDPT frame (ports)
@@ -286,33 +313,25 @@ export function parseDeviceData(reader: BinaryReader): DeviceDataData {
   data.ports = parseDevicePorts(portsReader);
 
   // Check for optional DDDC (MIDI definitions)
-  if (!reader.isEof) {
-    const nextFourCC = reader.peekFourCC();
-    if (nextFourCC === MIDI_DEFINITIONS_CONTAINER_FRAME_ID) {
-      const midiDefsHeader = Frame.readHeader(reader);
-      const midiDefsReader = reader.slice(midiDefsHeader.size);
-      data.midiDefinitions = parseMidiDefinitionsContainer(midiDefsReader);
-    }
+  const midiDefinitions = readOptionalFrame(
+    reader,
+    MIDI_DEFINITIONS_CONTAINER_FRAME_ID,
+    parseMidiDefinitionsContainer
+  );
+  if (midiDefinitions !== undefined) {
+    data.midiDefinitions = midiDefinitions;
   }
 
   // Check for optional DDCB (mappings)
-  if (!reader.isEof) {
-    const nextFourCC = reader.peekFourCC();
-    if (nextFourCC === MAPPINGS_CONTAINER_FRAME_ID) {
-      const mappingsHeader = Frame.readHeader(reader);
-      const mappingsReader = reader.slice(mappingsHeader.size);
-      data.mappings = parseMappingsContainer(mappingsReader);
-    }
+  const mappings = readOptionalFrame(reader, MAPPINGS_CONTAINER_FRAME_ID, parseMappingsContainer);
+  if (mappings !== undefined) {
+    data.mappings = mappings;
   }
 
   // Check for optional DVST
-  if (!reader.isEof) {
-    const nextFourCC = reader.peekFourCC();
-    if (nextFourCC === DVST_FRAME_ID) {
-      const dvstHeader = Frame.readHeader(reader);
-      const dvstReader = reader.slice(dvstHeader.size);
-      data.dvst = parseDvst(dvstReader);
-    }
+  const dvst = readOptionalFrame(reader, DVST_FRAME_ID, parseDvst);
+  if (dvst !== undefined) {
+    data.dvst = dvst;
   }
 
   return data;

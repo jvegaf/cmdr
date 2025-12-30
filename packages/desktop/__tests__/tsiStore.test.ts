@@ -233,9 +233,32 @@ vi.mock('@cmdr/core', () => {
     }
   }
 
+  // AIDEV-NOTE: Mock deepCopyMappingData to match @cmdr/core implementation
+  // This must handle Uint8Array deep copy and preserveBindingId option
+  function deepCopyMappingData(
+    data: RawMappingData,
+    options: { preserveBindingId?: boolean } = {}
+  ): RawMappingData {
+    const { preserveBindingId = false } = options;
+    return {
+      midiNoteBindingId: preserveBindingId ? data.midiNoteBindingId : -1,
+      type: data.type,
+      traktorControlId: data.traktorControlId,
+      settings: {
+        ...data.settings,
+        setValueTo: new Uint8Array(data.settings.setValueTo),
+        conditionOneValue: new Uint8Array(data.settings.conditionOneValue),
+        conditionTwoValue: new Uint8Array(data.settings.conditionTwoValue),
+        ledMinControllerRange: new Uint8Array(data.settings.ledMinControllerRange),
+        ledMaxControllerRange: new Uint8Array(data.settings.ledMaxControllerRange),
+      },
+    };
+  }
+
   return {
     Device: MockDevice,
     Mapping: MockMapping,
+    deepCopyMappingData,
     MappingType: { In: 0, Out: 1 },
     MappingControlType: { Button: 0, Fader: 1, Encoder: 2, LED: 3 },
     MappingInteractionMode: { Hold: 0, Toggle: 1, Direct: 2 },
@@ -276,18 +299,88 @@ function createMockMappingData(commandId = 0, bindingId = -1) {
   };
 }
 
+type MockDeviceData = {
+  deviceType: string;
+  isKeyboard?: boolean;
+  comment?: string;
+  data: { mappings: { mappings: ReturnType<typeof createMockMappingData>[] } };
+};
+
+/**
+ * AIDEV-NOTE: Mock TsiFile class that mimics the real TsiFile class behavior.
+ * The real TsiFile has:
+ * - controllerDevices: DeviceData[]
+ * - keyboardDevices: DeviceData[]
+ * - devices getter: returns [...controllerDevices, ...keyboardDevices]
+ * - removeDevice(index): removes from the combined index
+ * - duplicateDevice(index): duplicates at combined index, returns new index
+ * - getDevice(index): returns device data at combined index
+ */
 function createMockTsiFile(deviceCount = 1, mappingsPerDevice = 3) {
-  const devices: Array<{
-    deviceType: string;
-    data: { mappings: { mappings: ReturnType<typeof createMockMappingData>[] } };
-  }> = [];
+  const controllerDevices: MockDeviceData[] = [];
+  const keyboardDevices: MockDeviceData[] = [];
+
   for (let i = 0; i < deviceCount; i++) {
     const mappings = Array.from({ length: mappingsPerDevice }, (_, j) =>
       createMockMappingData(j + 1, j + 1)
     );
-    devices.push({ deviceType: `Device ${i}`, data: { mappings: { mappings } } });
+    controllerDevices.push({
+      deviceType: `Device ${i}`,
+      isKeyboard: false,
+      data: { mappings: { mappings } },
+    });
   }
-  return { devices };
+
+  return {
+    get devices() {
+      return [...controllerDevices, ...keyboardDevices];
+    },
+    controllerDevices,
+    keyboardDevices,
+
+    // AIDEV-NOTE: Remove device at combined index (mirrors TsiFile.removeDevice)
+    removeDevice(combinedIndex: number): boolean {
+      if (combinedIndex < 0) return false;
+      if (combinedIndex < controllerDevices.length) {
+        controllerDevices.splice(combinedIndex, 1);
+        return true;
+      }
+      const keyboardIndex = combinedIndex - controllerDevices.length;
+      if (keyboardIndex < keyboardDevices.length) {
+        keyboardDevices.splice(keyboardIndex, 1);
+        return true;
+      }
+      return false;
+    },
+
+    // AIDEV-NOTE: Duplicate device at combined index, returns new device index
+    duplicateDevice(combinedIndex: number): number {
+      if (combinedIndex < 0) return -1;
+      if (combinedIndex < controllerDevices.length) {
+        const original = controllerDevices[combinedIndex];
+        if (!original) return -1;
+        const copy = JSON.parse(JSON.stringify(original));
+        controllerDevices.splice(combinedIndex + 1, 0, copy);
+        return combinedIndex + 1;
+      }
+      const keyboardIndex = combinedIndex - controllerDevices.length;
+      if (keyboardIndex < keyboardDevices.length) {
+        const original = keyboardDevices[keyboardIndex];
+        if (!original) return -1;
+        const copy = JSON.parse(JSON.stringify(original));
+        keyboardDevices.splice(keyboardIndex + 1, 0, copy);
+        return combinedIndex + 1;
+      }
+      return -1;
+    },
+
+    // AIDEV-NOTE: Get device data at combined index
+    getDevice(combinedIndex: number): MockDeviceData | null {
+      const devices = [...controllerDevices, ...keyboardDevices];
+      if (combinedIndex < 0 || combinedIndex >= devices.length) return null;
+      return devices[combinedIndex] ?? null;
+    },
+  };
 }
 
 function resetStores() {
@@ -697,6 +790,189 @@ describe('tsiStore', () => {
       const mappings = getSelectedMappings(fileId);
       expect(mappings).toHaveLength(3);
       expect(mappings.map((m: any) => m.id)).toEqual([1, 3, 5]);
+    });
+  });
+
+  // ==========================================================================
+  // Device Manipulation (Phase 19: Settings implementation)
+  // ==========================================================================
+  describe('Device Manipulation', () => {
+    it('should remove a device and adjust selection', () => {
+      const { openFile, selectDevice, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(3, 2) as any);
+
+      // Verify initial state
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(3);
+      expect(file.selectedDeviceIndex).toBe(0);
+
+      // Select second device
+      selectDevice(fileId, 1);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.selectedDeviceIndex).toBe(1);
+
+      // Remove selected device (index 1)
+      removeDevice(fileId, 1);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+      expect(file.isDirty).toBe(true);
+      // Selected should move to previous device (index 0)
+      expect(file.selectedDeviceIndex).toBe(0);
+      // Mappings selection should be cleared
+      expect(file.selectedMappingIds.size).toBe(0);
+    });
+
+    it('should remove the first device and select the new first', () => {
+      const { openFile, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(3, 2) as any);
+
+      // Selection starts at 0
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.selectedDeviceIndex).toBe(0);
+      expect(file.devices[0].deviceType).toBe('Device 0');
+
+      // Remove first device
+      removeDevice(fileId, 0);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+      // Should stay at 0 (the new first device)
+      expect(file.selectedDeviceIndex).toBe(0);
+      expect(file.devices[0].deviceType).toBe('Device 1');
+    });
+
+    it('should set selection to null when removing the last device', () => {
+      const { openFile, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(1, 2) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(1);
+
+      // Remove the only device
+      removeDevice(fileId, 0);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(0);
+      expect(file.selectedDeviceIndex).toBe(null);
+    });
+
+    it('should adjust selection when removing device before selected', () => {
+      const { openFile, selectDevice, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(4, 2) as any);
+
+      // Select device 2 (index 2)
+      selectDevice(fileId, 2);
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.selectedDeviceIndex).toBe(2);
+
+      // Remove device at index 0
+      removeDevice(fileId, 0);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(3);
+      // Selection should decrease by 1
+      expect(file.selectedDeviceIndex).toBe(1);
+    });
+
+    it('should not change selection when removing device after selected', () => {
+      const { openFile, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(4, 2) as any);
+
+      // Selection is at 0
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.selectedDeviceIndex).toBe(0);
+
+      // Remove device at index 2
+      removeDevice(fileId, 2);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(3);
+      // Selection should stay at 0
+      expect(file.selectedDeviceIndex).toBe(0);
+    });
+
+    it('should not remove device with invalid index', () => {
+      const { openFile, removeDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(2, 2) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+
+      // Try to remove with negative index
+      removeDevice(fileId, -1);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+
+      // Try to remove with out-of-bounds index
+      removeDevice(fileId, 5);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+    });
+
+    it('should duplicate a device and select the copy', () => {
+      const { openFile, duplicateDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(2, 3) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+
+      // Duplicate device 0
+      duplicateDevice(fileId, 0);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+
+      expect(file.devices).toHaveLength(3);
+      expect(file.isDirty).toBe(true);
+      // New device should be selected (index 1)
+      expect(file.selectedDeviceIndex).toBe(1);
+      // Mappings selection should be cleared
+      expect(file.selectedMappingIds.size).toBe(0);
+    });
+
+    it('should not duplicate device with invalid index', () => {
+      const { openFile, duplicateDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(2, 2) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+
+      // Try to duplicate with negative index
+      duplicateDevice(fileId, -1);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+
+      // Try to duplicate with out-of-bounds index
+      duplicateDevice(fileId, 5);
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices).toHaveLength(2);
+    });
+
+    it('should rename a device via comment', () => {
+      const { openFile, renameDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(2, 2) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices[0].comment).toBeUndefined();
+
+      // Rename device 0
+      renameDevice(fileId, 0, 'My Custom Device');
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+
+      expect(file.devices[0].comment).toBe('My Custom Device');
+      expect(file.isDirty).toBe(true);
+    });
+
+    it('should not rename device with invalid index', () => {
+      const { openFile, renameDevice } = useTsiStore.getState();
+      const fileId = openFile('/test.tsi', createMockTsiFile(2, 2) as any);
+
+      let file = useTsiStore.getState().openFiles.get(fileId)!;
+      const originalDevice0Comment = file.devices[0].comment;
+
+      // Try to rename with negative index
+      renameDevice(fileId, -1, 'Bad Name');
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices[0].comment).toBe(originalDevice0Comment);
+
+      // Try to rename with out-of-bounds index
+      renameDevice(fileId, 5, 'Bad Name');
+      file = useTsiStore.getState().openFiles.get(fileId)!;
+      expect(file.devices[0].comment).toBe(originalDevice0Comment);
     });
   });
 });

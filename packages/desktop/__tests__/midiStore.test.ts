@@ -464,6 +464,107 @@ describe('midiStore', () => {
         })
       );
     });
+
+    // AIDEV-NOTE: Tests for settings integration - MIDI Learn timeout from appStore
+    it('should use learnTimeout from settings when no explicit timeout provided', async () => {
+      const mocks = getMocks();
+      useMidiStore.setState({ isEnabled: true });
+
+      const mockMessage = { type: 'noteon', channel: 1, data1: 60, data2: 100 };
+      mocks.startMidiLearn.mockResolvedValue(mockMessage);
+
+      // Import and set appStore settings
+      const { useAppStore } = await import('../src/renderer/store/appStore');
+      useAppStore.setState({
+        settings: {
+          ...useAppStore.getState().settings,
+          midi: {
+            ...useAppStore.getState().settings.midi,
+            learnTimeout: 15, // 15 seconds
+          },
+        },
+      });
+
+      const { startLearn } = useMidiStore.getState();
+
+      await act(async () => {
+        await startLearn('file1', [1]);
+      });
+
+      // Should use 15 seconds * 1000 = 15000ms
+      expect(mocks.startMidiLearn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: 15000,
+        })
+      );
+    });
+
+    it('should convert learnTimeout from seconds to milliseconds', async () => {
+      const mocks = getMocks();
+      useMidiStore.setState({ isEnabled: true });
+
+      const mockMessage = { type: 'noteon', channel: 1, data1: 60, data2: 100 };
+      mocks.startMidiLearn.mockResolvedValue(mockMessage);
+
+      // Import and set appStore settings with 30 seconds
+      const { useAppStore } = await import('../src/renderer/store/appStore');
+      useAppStore.setState({
+        settings: {
+          ...useAppStore.getState().settings,
+          midi: {
+            ...useAppStore.getState().settings.midi,
+            learnTimeout: 30, // 30 seconds
+          },
+        },
+      });
+
+      const { startLearn } = useMidiStore.getState();
+
+      await act(async () => {
+        await startLearn('file1', [1]);
+      });
+
+      // Should use 30 seconds * 1000 = 30000ms
+      expect(mocks.startMidiLearn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: 30000,
+        })
+      );
+    });
+
+    it('should allow explicit timeout option to override settings', async () => {
+      const mocks = getMocks();
+      useMidiStore.setState({ isEnabled: true });
+
+      const mockMessage = { type: 'noteon', channel: 1, data1: 60, data2: 100 };
+      mocks.startMidiLearn.mockResolvedValue(mockMessage);
+
+      // Set settings to 15 seconds
+      const { useAppStore } = await import('../src/renderer/store/appStore');
+      useAppStore.setState({
+        settings: {
+          ...useAppStore.getState().settings,
+          midi: {
+            ...useAppStore.getState().settings.midi,
+            learnTimeout: 15,
+          },
+        },
+      });
+
+      const { startLearn } = useMidiStore.getState();
+
+      // Explicitly pass 5000ms timeout
+      await act(async () => {
+        await startLearn('file1', [1], { timeout: 5000 });
+      });
+
+      // Should use explicit timeout (5000ms), not settings (15000ms)
+      expect(mocks.startMidiLearn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: 5000,
+        })
+      );
+    });
   });
 
   describe('cancelLearn', () => {

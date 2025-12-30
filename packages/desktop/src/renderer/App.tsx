@@ -35,67 +35,68 @@
  * - Menu actions handled via IPC from main process
  */
 
-import { type Device, type Mapping, TsiFile } from "@cmdr/core";
+import { type Device, type Mapping, TsiFile } from '@cmdr/core';
 import {
-	BarChart3,
-	ClipboardCopy,
-	ClipboardPaste,
-	Clock,
-	Copy,
-	Download,
-	FilePlus,
-	FolderOpen,
-	Info,
-	Keyboard,
-	ListChecks,
-	Redo2,
-	Save,
-	SaveAll,
-	Scissors,
-	Settings,
-	Trash2,
-	Undo2,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+  BarChart3,
+  ClipboardCopy,
+  ClipboardPaste,
+  Clock,
+  Copy,
+  Download,
+  FilePlus,
+  FolderOpen,
+  Info,
+  Keyboard,
+  ListChecks,
+  Redo2,
+  Save,
+  SaveAll,
+  Scissors,
+  Settings,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { FilterPanel, SearchInput } from "./components/common";
-import { DeviceList } from "./components/devices";
+import { FilterPanel, SearchInput } from './components/common';
+import { DeviceList } from './components/devices';
 import {
-	AboutDialog,
-	ConfirmDialog,
-	ExportDialog,
-	KeyboardShortcutsDialog,
-	SettingsDialog,
-	useConfirmDialog,
-	useExportDialog,
-} from "./components/dialogs";
-import { MappingEditor } from "./components/editors";
-import { FileTabs } from "./components/files";
-import { MappingList } from "./components/mappings";
-import { CommandsReport, ConditionsSummary } from "./components/reports";
-import { ThemeProvider, ThemeToggle } from "./components/theme";
-import { Button } from "./components/ui";
-import { SHORTCUTS, useKeyboardShortcuts, useMenuActions, useAppClose } from "./hooks";
+  AboutDialog,
+  ConfirmDialog,
+  ExportDialog,
+  KeyboardShortcutsDialog,
+  SettingsDialog,
+  useConfirmDialog,
+  useExportDialog,
+} from './components/dialogs';
+import { MappingEditor } from './components/editors';
+import { FileTabs } from './components/files';
+import { MappingList } from './components/mappings';
+import { CommandsReport, ConditionsSummary } from './components/reports';
+import { ThemeProvider, ThemeToggle } from './components/theme';
+import { Button, ToastContainer } from './components/ui';
+import { SHORTCUTS, useKeyboardShortcuts, useMenuActions, useAppClose } from './hooks';
 import {
-	exportCommandsReportToCsv,
-	exportConditionsSummaryToCsv,
-	exportToCsv,
-	generateCommandsReport,
-	generateConditionsSummary,
-} from "./lib/csv-export";
-import { ipcClient } from "./lib/ipc-client";
-import { useAppStore, useRecentFiles } from "./store/appStore";
-import { useHistoryInfo } from "./store/historyStore";
-import { useMidiStore } from "./store/midiStore";
+  exportCommandsReportToCsv,
+  exportConditionsSummaryToCsv,
+  exportToCsv,
+  generateCommandsReport,
+  generateConditionsSummary,
+} from './lib/csv-export';
+import { ipcClient } from './lib/ipc-client';
+import { useAppStore, useConfirmationsSettings, useRecentFiles } from './store/appStore';
+import { useHistoryInfo } from './store/historyStore';
+import { useMidiStore } from './store/midiStore';
 import {
-	filterMappings,
-	useActiveFile,
-	useCanPaste,
-	useHasActiveFilters,
-	useHasDirtyFiles,
-	useOpenFiles,
-	useTsiStore,
-} from "./store/tsiStore";
+  filterMappings,
+  useActiveFile,
+  useCanPaste,
+  useHasActiveFilters,
+  useHasDirtyFiles,
+  useOpenFiles,
+  useTsiStore,
+} from './store/tsiStore';
+import { showErrorToast, showSuccessToast } from './store/toastStore';
 
 // ============================================================================
 // AppLayout Component
@@ -105,865 +106,944 @@ import {
  * Main application layout with file tabs and 3-panel design
  */
 function AppLayout() {
-	const activeFile = useActiveFile();
-	const openFiles = useOpenFiles();
-	const recentFiles = useRecentFiles();
-	const canPaste = useCanPaste();
-	const hasActiveFilters = useHasActiveFilters();
-	const hasDirtyFiles = useHasDirtyFiles();
-	const historyInfo = useHistoryInfo(activeFile?.id ?? null);
-	const addRecentFile = useAppStore((s) => s.addRecentFile);
-	const searchInputRef = useRef<HTMLInputElement>(null);
-	const {
-		openFile,
-		createNewFile,
-		closeFile,
-		setActiveFile,
-		selectMappings,
-		markClean,
-		updateFilePath,
-		// Phase 14: Edit operations
-		copyMappings,
-		cutMappings,
-		pasteMappings,
-		duplicateMappings,
-		deleteMappings,
-		// Phase 14.5: Undo/Redo
-		undo,
-		redo,
-		// Phase 15: Search and Filters
-		setSearchQuery,
-		setFilters,
-		clearFilters,
-	} = useTsiStore();
-	const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
-
-	// State for the file to close (when confirmation is needed)
-	// AIDEV-NOTE: This tracks which file triggered the unsaved changes dialog
-	const [_pendingCloseFileId, setPendingCloseFileId] = useState<string | null>(
-		null,
-	);
-
-	// Phase 16: Reports dialog state
-	const [showCommandsReport, setShowCommandsReport] = useState(false);
-	const [showConditionsSummary, setShowConditionsSummary] = useState(false);
-
-	// Phase 17: Help dialogs state
-	const [showAboutDialog, setShowAboutDialog] = useState(false);
-	const [showSettingsDialog, setShowSettingsDialog] = useState(false);
-	const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
-
-	// Confirm dialog for unsaved changes
-	const unsavedChangesDialog = useConfirmDialog({
-		title: "Unsaved Changes",
-		message: "Do you want to save changes before closing?",
-		confirmText: "Save",
-		cancelText: "Cancel",
-		thirdOptionText: "Don't Save",
-	});
-
-	// Phase 16: Export dialog hook
-	const exportDialog = useExportDialog({
-		mappingCount: 0, // Will be updated when used
-		selectedOnly: false,
-	});
-
-	// Initialize MIDI on mount
-	useEffect(() => {
-		initMidi();
-	}, [initMidi]);
-
-	// Phase 18.1: App close confirmation with dirty files
-	useAppClose(hasDirtyFiles);
-
-	// ========================================================================
-	// File Operations
-	// ========================================================================
-
-	// Handle new file
-	const handleNewFile = useCallback(() => {
-		const tsiFile = TsiFile.create();
-		createNewFile(tsiFile);
-	}, [createNewFile]);
-
-	// Handle open file
-	const handleOpenFile = useCallback(async () => {
-		try {
-			const result = await ipcClient.openTsiFile();
-			if (result) {
-				openFile(result.filePath, result.tsiFile);
-				addRecentFile(result.filePath);
-			}
-		} catch (error) {
-			console.error("Failed to open file:", error);
-		}
-	}, [openFile, addRecentFile]);
-
-	// Handle open recent file
-	const handleOpenRecentFile = useCallback(
-		async (filePath: string) => {
-			try {
-				const tsiFile = await ipcClient.readTsiFile(filePath);
-				openFile(filePath, tsiFile);
-				addRecentFile(filePath);
-			} catch (error) {
-				console.error("Failed to open recent file:", error);
-				// TODO: Show error toast and possibly remove from recent files
-			}
-		},
-		[openFile, addRecentFile],
-	);
-
-	// Handle save file
-	const handleSaveFile = useCallback(async () => {
-		if (!activeFile) return;
-
-		try {
-			if (activeFile.filePath) {
-				// File has a path - save directly
-				await ipcClient.writeTsiFile(activeFile.tsiFile, activeFile.filePath);
-				markClean(activeFile.id);
-				addRecentFile(activeFile.filePath);
-			} else {
-				// No path - use Save As dialog
-				const savedPath = await ipcClient.saveTsiFile(activeFile.tsiFile);
-				if (savedPath) {
-					updateFilePath(activeFile.id, savedPath);
-					markClean(activeFile.id);
-					addRecentFile(savedPath);
-				}
-			}
-		} catch (error) {
-			console.error("Failed to save file:", error);
-		}
-	}, [activeFile, markClean, updateFilePath, addRecentFile]);
-
-	// Handle save as
-	const handleSaveAsFile = useCallback(async () => {
-		if (!activeFile) return;
-
-		try {
-			const savedPath = await ipcClient.saveTsiFile(
-				activeFile.tsiFile,
-				activeFile.filePath ?? undefined,
-			);
-			if (savedPath) {
-				updateFilePath(activeFile.id, savedPath);
-				markClean(activeFile.id);
-				addRecentFile(savedPath);
-			}
-		} catch (error) {
-			console.error("Failed to save file:", error);
-		}
-	}, [activeFile, markClean, updateFilePath, addRecentFile]);
-
-	// Handle close file request (may show confirmation)
-	const handleCloseFileRequest = useCallback(
-		async (fileId: string) => {
-			const file = useTsiStore.getState().openFiles.get(fileId);
-			if (!file) return;
-
-			if (file.isDirty) {
-				// Show confirmation dialog
-				setPendingCloseFileId(fileId);
-				const result = await unsavedChangesDialog.confirm();
-
-				if (result === "confirm") {
-					// Save then close
-					try {
-						if (file.filePath) {
-							await ipcClient.writeTsiFile(file.tsiFile, file.filePath);
-						} else {
-							const savedPath = await ipcClient.saveTsiFile(file.tsiFile);
-							if (!savedPath) {
-								// User cancelled save dialog - don't close
-								setPendingCloseFileId(null);
-								return;
-							}
-						}
-						closeFile(fileId);
-					} catch (error) {
-						console.error("Failed to save file:", error);
-					}
-				} else if (result === "third") {
-					// Don't save, just close
-					closeFile(fileId);
-				}
-				// "cancel" - do nothing
-
-				setPendingCloseFileId(null);
-			} else {
-				// No unsaved changes - close directly
-				closeFile(fileId);
-			}
-		},
-		[closeFile, unsavedChangesDialog],
-	);
-
-	// ========================================================================
-	// Edit Operations (Phase 14)
-	// ========================================================================
-
-	const handleCopy = useCallback(() => {
-		if (activeFile && activeFile.selectedMappingIds.size > 0) {
-			copyMappings(activeFile.id);
-		}
-	}, [activeFile, copyMappings]);
-
-	const handleCut = useCallback(() => {
-		if (activeFile && activeFile.selectedMappingIds.size > 0) {
-			cutMappings(activeFile.id);
-		}
-	}, [activeFile, cutMappings]);
-
-	const handlePaste = useCallback(() => {
-		if (activeFile && canPaste) {
-			pasteMappings(activeFile.id);
-		}
-	}, [activeFile, canPaste, pasteMappings]);
-
-	const handleDuplicate = useCallback(() => {
-		if (activeFile && activeFile.selectedMappingIds.size > 0) {
-			duplicateMappings(activeFile.id);
-		}
-	}, [activeFile, duplicateMappings]);
-
-	const handleDelete = useCallback(() => {
-		if (activeFile && activeFile.selectedMappingIds.size > 0) {
-			deleteMappings(activeFile.id);
-		}
-	}, [activeFile, deleteMappings]);
-
-	// Phase 14.5: Undo/Redo handlers
-	const handleUndo = useCallback(() => {
-		if (activeFile && historyInfo.canUndo) {
-			undo(activeFile.id);
-		}
-	}, [activeFile, historyInfo.canUndo, undo]);
-
-	const handleRedo = useCallback(() => {
-		if (activeFile && historyInfo.canRedo) {
-			redo(activeFile.id);
-		}
-	}, [activeFile, historyInfo.canRedo, redo]);
-
-	// Phase 15: Focus search input (for Ctrl+F shortcut)
-	const handleFocusSearch = useCallback(() => {
-		searchInputRef.current?.focus();
-	}, []);
-
-	// Enable state for edit buttons
-	const hasSelection =
-		activeFile !== null && activeFile.selectedMappingIds.size > 0;
-
-	// Keyboard shortcuts
-	useKeyboardShortcuts({
-		onNew: handleNewFile,
-		onOpen: handleOpenFile,
-		onSave: handleSaveFile,
-		onSaveAs: handleSaveAsFile,
-		onCopy: handleCopy,
-		onCut: handleCut,
-		onPaste: handlePaste,
-		onDuplicate: handleDuplicate,
-		onDelete: handleDelete,
-		onUndo: handleUndo,
-		onRedo: handleRedo,
-		onSearch: handleFocusSearch,
-	});
-
-	// ========================================================================
-	// Device/Mapping Selection
-	// ========================================================================
-
-	// Get device and mapping counts
-	const deviceCount = activeFile?.devices.length ?? 0;
-	const mappingCount = activeFile
-		? activeFile.devices.reduce(
-				(sum: number, d: Device) => sum + d.mappingCount,
-				0,
-			)
-		: 0;
-
-	// Get selected device
-	const selectedDevice = useMemo(() => {
-		if (!activeFile || activeFile.selectedDeviceIndex === null) return null;
-		return activeFile.devices[activeFile.selectedDeviceIndex] ?? null;
-	}, [activeFile]);
-
-	// Get selected mappings
-	const selectedMappings = useMemo(() => {
-		if (!selectedDevice || !activeFile) return [];
-		return selectedDevice.mappings.filter((m: Mapping) =>
-			activeFile.selectedMappingIds.has(m.id),
-		);
-	}, [selectedDevice, activeFile]);
-
-	// Handle mapping selection change
-	const handleMappingSelectionChange = useCallback(
-		(newSelection: Set<number>) => {
-			if (!activeFile) return;
-			selectMappings(activeFile.id, Array.from(newSelection));
-		},
-		[activeFile, selectMappings],
-	);
-
-	// ========================================================================
-	// Search and Filters (Phase 15)
-	// ========================================================================
-
-	// Handle search query change
-	const handleSearchChange = useCallback(
-		(query: string) => {
-			if (!activeFile) return;
-			setSearchQuery(activeFile.id, query);
-		},
-		[activeFile, setSearchQuery],
-	);
-
-	// Handle filter change
-	const handleFiltersChange = useCallback(
-		(newFilters: Parameters<typeof setFilters>[1]) => {
-			if (!activeFile) return;
-			setFilters(activeFile.id, newFilters);
-		},
-		[activeFile, setFilters],
-	);
-
-	// Handle clear filters
-	const handleClearFilters = useCallback(() => {
-		if (!activeFile) return;
-		clearFilters(activeFile.id);
-	}, [activeFile, clearFilters]);
-
-	// ========================================================================
-	// Export and Reports (Phase 16)
-	// ========================================================================
-
-	// Handle CSV export
-	const handleExportCsv = useCallback(async () => {
-		if (!activeFile) return;
-
-		// Update export dialog with current mapping count
-		const totalMappingCount = activeFile.devices.reduce(
-			(sum, d) => sum + d.mappingCount,
-			0,
-		);
-		exportDialog.updateOptions({
-			mappingCount: totalMappingCount,
-			selectedOnly: false,
-		});
-
-		const columns = await exportDialog.openDialog();
-		if (!columns) return; // User cancelled
-
-		const csvContent = exportToCsv(activeFile.devices, {
-			columns,
-			includeHeader: true,
-		});
-
-		const defaultPath = activeFile.filePath
-			? activeFile.filePath.replace(/\.tsi$/i, ".csv")
-			: "mappings.csv";
-
-		await ipcClient.saveCsvFile(csvContent, defaultPath);
-	}, [activeFile, exportDialog]);
-
-	// Show commands report
-	const handleShowCommandsReport = useCallback(() => {
-		setShowCommandsReport(true);
-	}, []);
-
-	// Show conditions summary
-	const handleShowConditionsSummary = useCallback(() => {
-		setShowConditionsSummary(true);
-	}, []);
-
-	// Commands report data
-	const commandsReportData = useMemo(() => {
-		if (!activeFile) return [];
-		return generateCommandsReport(activeFile.devices);
-	}, [activeFile]);
-
-	// Conditions summary data
-	const conditionsSummaryData = useMemo(() => {
-		if (!activeFile) return [];
-		return generateConditionsSummary(activeFile.devices);
-	}, [activeFile]);
-
-	// Filter mappings based on search query and filters
-	const filteredMappings = useMemo(() => {
-		if (!selectedDevice || !activeFile) return { filtered: [], matchingIds: new Set<number>() };
-
-		const searchQuery = activeFile.searchQuery;
-		const filters = activeFile.filters;
-
-		// If no search or filters, return all mappings
-		if (!searchQuery && !hasActiveFilters) {
-			return {
-				filtered: [...selectedDevice.mappings],
-				matchingIds: new Set(selectedDevice.mappings.map((m) => m.id)),
-			};
-		}
-
-		return filterMappings(selectedDevice.mappings, searchQuery, filters);
-	}, [selectedDevice, activeFile, hasActiveFilters]);
-
-	// ========================================================================
-	// Menu Actions (Phase 18)
-	// ========================================================================
-
-	// Handle close file from menu
-	const handleCloseFile = useCallback(() => {
-		if (activeFile) {
-			handleCloseFileRequest(activeFile.id);
-		}
-	}, [activeFile, handleCloseFileRequest]);
-
-	// Handle select all from menu
-	const handleSelectAll = useCallback(() => {
-		if (activeFile && selectedDevice) {
-			const allIds = selectedDevice.mappings.map((m) => m.id);
-			selectMappings(activeFile.id, allIds);
-		}
-	}, [activeFile, selectedDevice, selectMappings]);
-
-	// Application menu actions
-	// AIDEV-NOTE: These handlers are called from the native application menu
-	// via IPC events from the main process
-	useMenuActions({
-		// File menu
-		onNew: handleNewFile,
-		onOpen: handleOpenFile,
-		onSave: handleSaveFile,
-		onSaveAs: handleSaveAsFile,
-		onClose: handleCloseFile,
-		onExportCsv: handleExportCsv,
-		onSettings: () => setShowSettingsDialog(true),
-
-		// Edit menu
-		onUndo: handleUndo,
-		onRedo: handleRedo,
-		onCut: handleCut,
-		onCopy: handleCopy,
-		onPaste: handlePaste,
-		onDuplicate: handleDuplicate,
-		onDelete: handleDelete,
-		onSelectAll: handleSelectAll,
-
-		// View menu
-		onShowCommandsReport: handleShowCommandsReport,
-		onShowConditionsSummary: handleShowConditionsSummary,
-
-		// Help menu
-		onShortcuts: () => setShowShortcutsDialog(true),
-		onAbout: () => setShowAboutDialog(true),
-	});
-
-	// ========================================================================
-	// Render
-	// ========================================================================
-
-	return (
-		<div className="flex h-screen flex-col">
-			{/* Toolbar */}
-			<header className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
-				<div className="flex items-center gap-4">
-					<h1 className="text-lg font-semibold">CMDR</h1>
-					<span className="text-sm text-muted-foreground">TSI Editor</span>
-
-					{/* File actions */}
-					<div className="ml-4 flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleNewFile}
-							title={`New (${SHORTCUTS.new})`}
-						>
-							<FilePlus className="mr-2 h-4 w-4" />
-							New
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleOpenFile}
-							title={`Open (${SHORTCUTS.open})`}
-						>
-							<FolderOpen className="mr-2 h-4 w-4" />
-							Open
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleSaveFile}
-							disabled={!activeFile}
-							title={`Save (${SHORTCUTS.save})`}
-						>
-							<Save className="mr-2 h-4 w-4" />
-							Save
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleSaveAsFile}
-							disabled={!activeFile}
-							title={`Save As (${SHORTCUTS.saveAs})`}
-						>
-							<SaveAll className="mr-2 h-4 w-4" />
-							Save As
-						</Button>
-					</div>
-
-					{/* Separator */}
-					<div className="h-6 w-px bg-border" />
-
-					{/* Undo/Redo (Phase 14.5) */}
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleUndo}
-							disabled={!historyInfo.canUndo}
-							title={`Undo${historyInfo.undoDescription ? ` "${historyInfo.undoDescription}"` : ""} (${SHORTCUTS.undo})`}
-						>
-							<Undo2 className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleRedo}
-							disabled={!historyInfo.canRedo}
-							title={`Redo${historyInfo.redoDescription ? ` "${historyInfo.redoDescription}"` : ""} (${SHORTCUTS.redo})`}
-						>
-							<Redo2 className="h-4 w-4" />
-						</Button>
-					</div>
-
-					{/* Separator */}
-					<div className="h-6 w-px bg-border" />
-
-					{/* Edit actions (Phase 14) */}
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCopy}
-							disabled={!hasSelection}
-							title={`Copy (${SHORTCUTS.copy})`}
-						>
-							<Copy className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCut}
-							disabled={!hasSelection}
-							title={`Cut (${SHORTCUTS.cut})`}
-						>
-							<Scissors className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handlePaste}
-							disabled={!canPaste}
-							title={`Paste (${SHORTCUTS.paste})`}
-						>
-							<ClipboardPaste className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDuplicate}
-							disabled={!hasSelection}
-							title={`Duplicate (${SHORTCUTS.duplicate})`}
-						>
-							<ClipboardCopy className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleDelete}
-							disabled={!hasSelection}
-							title={`Delete (${SHORTCUTS.delete})`}
-						>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					</div>
-
-					{/* Separator */}
-					<div className="h-6 w-px bg-border" />
-
-					{/* Export and Reports (Phase 16) */}
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleExportCsv}
-							disabled={!activeFile}
-							title="Export to CSV"
-						>
-							<Download className="mr-2 h-4 w-4" />
-							Export
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleShowCommandsReport}
-							disabled={!activeFile}
-							title="Commands Overview"
-						>
-							<BarChart3 className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleShowConditionsSummary}
-							disabled={!activeFile}
-							title="Conditions Summary"
-						>
-							<ListChecks className="h-4 w-4" />
-						</Button>
-					</div>
-				</div>
-
-				<div className="flex items-center gap-2">
-					{/* MIDI status indicator */}
-					<span
-						className={`mr-2 flex items-center gap-1.5 text-xs ${
-							midiEnabled ? "text-green-500" : "text-muted-foreground"
-						}`}
-					>
-						<span
-							className={`h-2 w-2 rounded-full ${
-								midiEnabled ? "bg-green-500" : "bg-muted-foreground"
-							}`}
-						/>
-						MIDI {midiEnabled ? "Ready" : "Off"}
-					</span>
-
-					{/* Separator */}
-					<div className="h-6 w-px bg-border" />
-
-					{/* Help buttons (Phase 17) */}
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setShowShortcutsDialog(true)}
-						title="Keyboard Shortcuts"
-					>
-						<Keyboard className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setShowSettingsDialog(true)}
-						title="Settings"
-					>
-						<Settings className="h-4 w-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => setShowAboutDialog(true)}
-						title="About CMDR"
-					>
-						<Info className="h-4 w-4" />
-					</Button>
-
-					{/* Theme toggle */}
-					<ThemeToggle />
-				</div>
-			</header>
-
-			{/* File Tabs */}
-			<FileTabs
-				files={openFiles}
-				activeFileId={activeFile?.id ?? null}
-				onSelectFile={setActiveFile}
-				onCloseFile={handleCloseFileRequest}
-			/>
-
-			{/* Main Content */}
-			<main className="flex flex-1 overflow-hidden">
-				{/* Left Panel - Device Tree */}
-				<aside className="w-64 overflow-auto border-r border-border bg-card p-4">
-					<h2 className="mb-4 text-sm font-medium">Devices</h2>
-					{activeFile ? (
-						<DeviceList
-							devices={activeFile.devices}
-							selectedIndex={activeFile.selectedDeviceIndex}
-							fileId={activeFile.id}
-						/>
-					) : (
-						<p className="text-sm text-muted-foreground">No file loaded</p>
-					)}
-				</aside>
-
-				{/* Center - Mapping List */}
-				<section className="flex flex-1 flex-col overflow-hidden">
-					{activeFile && selectedDevice ? (
-						<>
-							{/* Search and Filter Bar (Phase 15) */}
-							<div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2">
-								<SearchInput
-									ref={searchInputRef}
-									value={activeFile.searchQuery}
-									onChange={handleSearchChange}
-									placeholder="Search mappings..."
-									showShortcut
-									className="w-64"
-								/>
-								<FilterPanel
-									filters={activeFile.filters}
-									onFiltersChange={handleFiltersChange}
-									onClearFilters={handleClearFilters}
-									hasActiveFilters={hasActiveFilters}
-								/>
-								<div className="ml-auto text-sm text-muted-foreground">
-									{hasActiveFilters || activeFile.searchQuery
-										? `${filteredMappings.filtered.length} of ${selectedDevice.mappingCount} mappings`
-										: `${selectedDevice.mappingCount} mappings`}
-								</div>
-							</div>
-							<div className="flex-1 overflow-hidden">
-								<MappingList
-									mappings={filteredMappings.filtered}
-									selectedIds={activeFile.selectedMappingIds}
-									onSelectionChange={handleMappingSelectionChange}
-									height={undefined} // Let it fill available space
-									totalCount={selectedDevice.mappingCount}
-									isFiltered={hasActiveFilters || !!activeFile.searchQuery}
-									searchQuery={activeFile.searchQuery}
-								/>
-							</div>
-						</>
-					) : activeFile ? (
-						// File loaded but no device selected
-						<div className="flex h-full items-center justify-center">
-							<p className="text-muted-foreground">
-								Select a device to view mappings
-							</p>
-						</div>
-					) : (
-						// No file loaded - show welcome screen
-						<div className="flex h-full items-center justify-center">
-							<div className="text-center max-w-md">
-								<p className="text-muted-foreground mb-4">
-									Open a TSI file to start editing
-								</p>
-								<div className="flex items-center justify-center gap-2 mb-6">
-									<Button variant="outline" onClick={handleNewFile}>
-										<FilePlus className="mr-2 h-4 w-4" />
-										New File
-									</Button>
-									<Button variant="outline" onClick={handleOpenFile}>
-										<FolderOpen className="mr-2 h-4 w-4" />
-										Open File
-									</Button>
-								</div>
-
-								{/* Recent Files */}
-								{recentFiles.length > 0 && (
-									<div className="border-t border-border pt-4">
-										<h3 className="text-sm font-medium mb-2 flex items-center justify-center gap-2">
-											<Clock className="h-4 w-4" />
-											Recent Files
-										</h3>
-										<ul className="space-y-1 text-left">
-											{recentFiles.slice(0, 5).map((file) => (
-												<li key={file.path}>
-													<button
-														type="button"
-														onClick={() => handleOpenRecentFile(file.path)}
-														className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent rounded truncate"
-														title={file.path}
-													>
-														{file.name}
-													</button>
-												</li>
-											))}
-										</ul>
-									</div>
-								)}
-							</div>
-						</div>
-					)}
-				</section>
-
-				{/* Right Panel - Properties */}
-				<aside className="w-80 overflow-auto border-l border-border bg-card">
-					<div className="border-b border-border px-4 py-2">
-						<h2 className="text-sm font-medium">Properties</h2>
-					</div>
-					<MappingEditor
-						mappings={selectedMappings}
-						fileId={activeFile?.id ?? null}
-					/>
-				</aside>
-			</main>
-
-			{/* Status Bar */}
-			<footer className="flex items-center justify-between border-t border-border bg-card px-4 py-1">
-				<p className="text-xs text-muted-foreground">
-					{activeFile
-						? `${activeFile.displayName}${activeFile.isDirty ? " •" : ""}`
-						: "Ready"}
-				</p>
-				<p className="text-xs text-muted-foreground">
-					{activeFile
-						? `${deviceCount} device${deviceCount !== 1 ? "s" : ""}, ${mappingCount} mapping${mappingCount !== 1 ? "s" : ""}`
-						: ""}
-				</p>
-			</footer>
-
-			{/* Unsaved Changes Confirmation Dialog */}
-			<ConfirmDialog {...unsavedChangesDialog.dialogProps} />
-
-			{/* Export Dialog (Phase 16) */}
-			<ExportDialog {...exportDialog.dialogProps} />
-
-			{/* Commands Report (Phase 16) */}
-			<CommandsReport
-				open={showCommandsReport}
-				rows={commandsReportData}
-				onClose={() => setShowCommandsReport(false)}
-				onExportCsv={() => {
-					const csv = exportCommandsReportToCsv(commandsReportData);
-					ipcClient.saveCsvFile(csv, "commands-report.csv");
-				}}
-			/>
-
-			{/* Conditions Summary (Phase 16) */}
-			<ConditionsSummary
-				open={showConditionsSummary}
-				rows={conditionsSummaryData}
-				onClose={() => setShowConditionsSummary(false)}
-				onExportCsv={() => {
-					const csv = exportConditionsSummaryToCsv(conditionsSummaryData);
-					ipcClient.saveCsvFile(csv, "conditions-summary.csv");
-				}}
-			/>
-
-			{/* About Dialog (Phase 17) */}
-			<AboutDialog
-				open={showAboutDialog}
-				onClose={() => setShowAboutDialog(false)}
-			/>
-
-			{/* Settings Dialog (Phase 17) */}
-			<SettingsDialog
-				open={showSettingsDialog}
-				onClose={() => setShowSettingsDialog(false)}
-			/>
-
-			{/* Keyboard Shortcuts Dialog (Phase 17) */}
-			<KeyboardShortcutsDialog
-				open={showShortcutsDialog}
-				onClose={() => setShowShortcutsDialog(false)}
-			/>
-		</div>
-	);
+  const activeFile = useActiveFile();
+  const openFiles = useOpenFiles();
+  const recentFiles = useRecentFiles();
+  const canPaste = useCanPaste();
+  const hasActiveFilters = useHasActiveFilters();
+  const hasDirtyFiles = useHasDirtyFiles();
+  const historyInfo = useHistoryInfo(activeFile?.id ?? null);
+  const addRecentFile = useAppStore((s) => s.addRecentFile);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const {
+    openFile,
+    createNewFile,
+    closeFile,
+    setActiveFile,
+    selectMappings,
+    markClean,
+    updateFilePath,
+    // Phase 14: Edit operations
+    copyMappings,
+    cutMappings,
+    pasteMappings,
+    duplicateMappings,
+    deleteMappings,
+    // Phase 14.5: Undo/Redo
+    undo,
+    redo,
+    // Phase 15: Search and Filters
+    setSearchQuery,
+    setFilters,
+    clearFilters,
+    // Phase 19: Device operations
+    removeDevice,
+    duplicateDevice,
+    renameDevice,
+  } = useTsiStore();
+  const { initialize: initMidi, isEnabled: midiEnabled } = useMidiStore();
+
+  // State for the file to close (when confirmation is needed)
+  // AIDEV-NOTE: This tracks which file triggered the unsaved changes dialog
+  const [_pendingCloseFileId, setPendingCloseFileId] = useState<string | null>(null);
+
+  // Phase 16: Reports dialog state
+  const [showCommandsReport, setShowCommandsReport] = useState(false);
+  const [showConditionsSummary, setShowConditionsSummary] = useState(false);
+
+  // Phase 17: Help dialogs state
+  const [showAboutDialog, setShowAboutDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
+
+  // Confirm dialog for unsaved changes
+  const unsavedChangesDialog = useConfirmDialog({
+    title: 'Unsaved Changes',
+    message: 'Do you want to save changes before closing?',
+    confirmText: 'Save',
+    cancelText: 'Cancel',
+    thirdOptionText: "Don't Save",
+  });
+
+  // Phase 19: Confirm dialog for deleting devices
+  const confirmationSettings = useConfirmationsSettings();
+  const deleteDeviceDialog = useConfirmDialog({
+    title: 'Delete Device',
+    message:
+      'Are you sure you want to delete this device? All mappings in this device will be lost.',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    confirmVariant: 'destructive',
+  });
+
+  // Phase 19: Confirm dialog for deleting mappings (with threshold)
+  const [deleteMappingsCount, setDeleteMappingsCount] = useState(0);
+  const deleteMappingsDialog = useConfirmDialog({
+    title: 'Delete Mappings',
+    message: `Are you sure you want to delete ${deleteMappingsCount} mapping${deleteMappingsCount !== 1 ? 's' : ''}?`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    confirmVariant: 'destructive',
+  });
+
+  // Phase 16: Export dialog hook
+  const exportDialog = useExportDialog({
+    mappingCount: 0, // Will be updated when used
+    selectedOnly: false,
+  });
+
+  // Initialize MIDI on mount
+  useEffect(() => {
+    initMidi();
+  }, [initMidi]);
+
+  // Phase 18.1: App close confirmation with dirty files
+  useAppClose(hasDirtyFiles);
+
+  // ========================================================================
+  // File Operations
+  // ========================================================================
+
+  // Handle new file
+  const handleNewFile = useCallback(() => {
+    const tsiFile = TsiFile.create();
+    createNewFile(tsiFile);
+  }, [createNewFile]);
+
+  // Handle open file
+  const handleOpenFile = useCallback(async () => {
+    try {
+      const result = await ipcClient.openTsiFile();
+      if (result) {
+        openFile(result.filePath, result.tsiFile);
+        addRecentFile(result.filePath);
+      }
+    } catch (error) {
+      console.error('Failed to open file:', error);
+      showErrorToast('Failed to open file', error instanceof Error ? error : undefined);
+    }
+  }, [openFile, addRecentFile]);
+
+  // Handle open recent file
+  const handleOpenRecentFile = useCallback(
+    async (filePath: string) => {
+      try {
+        const tsiFile = await ipcClient.readTsiFile(filePath);
+        openFile(filePath, tsiFile);
+        addRecentFile(filePath);
+      } catch (error) {
+        console.error('Failed to open recent file:', error);
+        showErrorToast('Failed to open file', error instanceof Error ? error : undefined);
+        // TODO: Possibly remove from recent files if file doesn't exist
+      }
+    },
+    [openFile, addRecentFile]
+  );
+
+  // Handle save file
+  const handleSaveFile = useCallback(async () => {
+    if (!activeFile) return;
+
+    try {
+      if (activeFile.filePath) {
+        // File has a path - save directly
+        await ipcClient.writeTsiFile(activeFile.tsiFile, activeFile.filePath);
+        markClean(activeFile.id);
+        addRecentFile(activeFile.filePath);
+        showSuccessToast('File saved successfully');
+      } else {
+        // No path - use Save As dialog
+        const savedPath = await ipcClient.saveTsiFile(activeFile.tsiFile);
+        if (savedPath) {
+          updateFilePath(activeFile.id, savedPath);
+          markClean(activeFile.id);
+          addRecentFile(savedPath);
+          showSuccessToast('File saved successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save file:', error);
+      showErrorToast('Failed to save file', error instanceof Error ? error : undefined);
+    }
+  }, [activeFile, markClean, updateFilePath, addRecentFile]);
+
+  // Handle save as
+  const handleSaveAsFile = useCallback(async () => {
+    if (!activeFile) return;
+
+    try {
+      const savedPath = await ipcClient.saveTsiFile(
+        activeFile.tsiFile,
+        activeFile.filePath ?? undefined
+      );
+      if (savedPath) {
+        updateFilePath(activeFile.id, savedPath);
+        markClean(activeFile.id);
+        addRecentFile(savedPath);
+        showSuccessToast('File saved successfully');
+      }
+    } catch (error) {
+      console.error('Failed to save file:', error);
+      showErrorToast('Failed to save file', error instanceof Error ? error : undefined);
+    }
+  }, [activeFile, markClean, updateFilePath, addRecentFile]);
+
+  // Handle close file request (may show confirmation)
+  const handleCloseFileRequest = useCallback(
+    async (fileId: string) => {
+      const file = useTsiStore.getState().openFiles.get(fileId);
+      if (!file) return;
+
+      if (file.isDirty) {
+        // Show confirmation dialog
+        setPendingCloseFileId(fileId);
+        const result = await unsavedChangesDialog.confirm();
+
+        if (result === 'confirm') {
+          // Save then close
+          try {
+            if (file.filePath) {
+              await ipcClient.writeTsiFile(file.tsiFile, file.filePath);
+            } else {
+              const savedPath = await ipcClient.saveTsiFile(file.tsiFile);
+              if (!savedPath) {
+                // User cancelled save dialog - don't close
+                setPendingCloseFileId(null);
+                return;
+              }
+            }
+            closeFile(fileId);
+          } catch (error) {
+            console.error('Failed to save file:', error);
+            showErrorToast('Failed to save file', error instanceof Error ? error : undefined);
+          }
+        } else if (result === 'third') {
+          // Don't save, just close
+          closeFile(fileId);
+        }
+        // "cancel" - do nothing
+
+        setPendingCloseFileId(null);
+      } else {
+        // No unsaved changes - close directly
+        closeFile(fileId);
+      }
+    },
+    [closeFile, unsavedChangesDialog]
+  );
+
+  // ========================================================================
+  // Edit Operations (Phase 14)
+  // ========================================================================
+
+  const handleCopy = useCallback(() => {
+    if (activeFile && activeFile.selectedMappingIds.size > 0) {
+      copyMappings(activeFile.id);
+    }
+  }, [activeFile, copyMappings]);
+
+  const handleCut = useCallback(() => {
+    if (activeFile && activeFile.selectedMappingIds.size > 0) {
+      cutMappings(activeFile.id);
+    }
+  }, [activeFile, cutMappings]);
+
+  const handlePaste = useCallback(() => {
+    if (activeFile && canPaste) {
+      pasteMappings(activeFile.id);
+    }
+  }, [activeFile, canPaste, pasteMappings]);
+
+  const handleDuplicate = useCallback(() => {
+    if (activeFile && activeFile.selectedMappingIds.size > 0) {
+      duplicateMappings(activeFile.id);
+    }
+  }, [activeFile, duplicateMappings]);
+
+  const handleDelete = useCallback(async () => {
+    if (!activeFile || activeFile.selectedMappingIds.size === 0) return;
+
+    const selectedCount = activeFile.selectedMappingIds.size;
+    const threshold = confirmationSettings.confirmDeleteMappingsThreshold;
+
+    // Check if we need to show confirmation (threshold of 0 means always confirm)
+    if (threshold === 0 || selectedCount >= threshold) {
+      setDeleteMappingsCount(selectedCount);
+      const result = await deleteMappingsDialog.confirm();
+      if (result !== 'confirm') return;
+    }
+
+    deleteMappings(activeFile.id);
+  }, [
+    activeFile,
+    confirmationSettings.confirmDeleteMappingsThreshold,
+    deleteMappings,
+    deleteMappingsDialog,
+  ]);
+
+  // Phase 14.5: Undo/Redo handlers
+  const handleUndo = useCallback(() => {
+    if (activeFile && historyInfo.canUndo) {
+      undo(activeFile.id);
+    }
+  }, [activeFile, historyInfo.canUndo, undo]);
+
+  const handleRedo = useCallback(() => {
+    if (activeFile && historyInfo.canRedo) {
+      redo(activeFile.id);
+    }
+  }, [activeFile, historyInfo.canRedo, redo]);
+
+  // Phase 15: Focus search input (for Ctrl+F shortcut)
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Enable state for edit buttons
+  const hasSelection = activeFile !== null && activeFile.selectedMappingIds.size > 0;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onNew: handleNewFile,
+    onOpen: handleOpenFile,
+    onSave: handleSaveFile,
+    onSaveAs: handleSaveAsFile,
+    onCopy: handleCopy,
+    onCut: handleCut,
+    onPaste: handlePaste,
+    onDuplicate: handleDuplicate,
+    onDelete: handleDelete,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onSearch: handleFocusSearch,
+  });
+
+  // ========================================================================
+  // Device/Mapping Selection
+  // ========================================================================
+
+  // Get device and mapping counts
+  const deviceCount = activeFile?.devices.length ?? 0;
+  const mappingCount = activeFile
+    ? activeFile.devices.reduce((sum: number, d: Device) => sum + d.mappingCount, 0)
+    : 0;
+
+  // Get selected device
+  const selectedDevice = useMemo(() => {
+    if (!activeFile || activeFile.selectedDeviceIndex === null) return null;
+    return activeFile.devices[activeFile.selectedDeviceIndex] ?? null;
+  }, [activeFile]);
+
+  // Get selected mappings
+  const selectedMappings = useMemo(() => {
+    if (!selectedDevice || !activeFile) return [];
+    return selectedDevice.mappings.filter((m: Mapping) => activeFile.selectedMappingIds.has(m.id));
+  }, [selectedDevice, activeFile]);
+
+  // Handle mapping selection change
+  const handleMappingSelectionChange = useCallback(
+    (newSelection: Set<number>) => {
+      if (!activeFile) return;
+      selectMappings(activeFile.id, Array.from(newSelection));
+    },
+    [activeFile, selectMappings]
+  );
+
+  // ========================================================================
+  // Search and Filters (Phase 15)
+  // ========================================================================
+
+  // Handle search query change
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      if (!activeFile) return;
+      setSearchQuery(activeFile.id, query);
+    },
+    [activeFile, setSearchQuery]
+  );
+
+  // Handle filter change
+  const handleFiltersChange = useCallback(
+    (newFilters: Parameters<typeof setFilters>[1]) => {
+      if (!activeFile) return;
+      setFilters(activeFile.id, newFilters);
+    },
+    [activeFile, setFilters]
+  );
+
+  // Handle clear filters
+  const handleClearFilters = useCallback(() => {
+    if (!activeFile) return;
+    clearFilters(activeFile.id);
+  }, [activeFile, clearFilters]);
+
+  // ========================================================================
+  // Export and Reports (Phase 16)
+  // ========================================================================
+
+  // Handle CSV export
+  const handleExportCsv = useCallback(async () => {
+    if (!activeFile) return;
+
+    // Update export dialog with current mapping count
+    const totalMappingCount = activeFile.devices.reduce((sum, d) => sum + d.mappingCount, 0);
+    exportDialog.updateOptions({
+      mappingCount: totalMappingCount,
+      selectedOnly: false,
+    });
+
+    const columns = await exportDialog.openDialog();
+    if (!columns) return; // User cancelled
+
+    const csvContent = exportToCsv(activeFile.devices, {
+      columns,
+      includeHeader: true,
+    });
+
+    const defaultPath = activeFile.filePath
+      ? activeFile.filePath.replace(/\.tsi$/i, '.csv')
+      : 'mappings.csv';
+
+    await ipcClient.saveCsvFile(csvContent, defaultPath);
+  }, [activeFile, exportDialog]);
+
+  // Show commands report
+  const handleShowCommandsReport = useCallback(() => {
+    setShowCommandsReport(true);
+  }, []);
+
+  // Show conditions summary
+  const handleShowConditionsSummary = useCallback(() => {
+    setShowConditionsSummary(true);
+  }, []);
+
+  // ========================================================================
+  // Device Operations (Phase 19: Settings integration)
+  // ========================================================================
+
+  // Handle device delete with optional confirmation
+  const handleDeleteDevice = useCallback(
+    async (deviceIndex: number) => {
+      if (!activeFile) return;
+
+      // Check if we should confirm
+      if (confirmationSettings.confirmDeleteDevices) {
+        const result = await deleteDeviceDialog.confirm();
+        if (result !== 'confirm') return;
+      }
+
+      removeDevice(activeFile.id, deviceIndex);
+    },
+    [activeFile, confirmationSettings.confirmDeleteDevices, deleteDeviceDialog, removeDevice]
+  );
+
+  // Handle device duplicate
+  const handleDuplicateDevice = useCallback(
+    (deviceIndex: number) => {
+      if (!activeFile) return;
+      duplicateDevice(activeFile.id, deviceIndex);
+    },
+    [activeFile, duplicateDevice]
+  );
+
+  // Handle device rename
+  // AIDEV-NOTE: In the future, this should open a rename dialog.
+  // For now, we'll use a simple prompt-style approach via the device comment.
+  const handleRenameDevice = useCallback(
+    (deviceIndex: number, _currentName: string) => {
+      if (!activeFile) return;
+      // TODO: Implement proper rename dialog
+      // For now, device renaming sets the comment field
+      const newName = window.prompt('Enter new device name:', _currentName);
+      if (newName !== null && newName.trim() !== '') {
+        renameDevice(activeFile.id, deviceIndex, newName.trim());
+      }
+    },
+    [activeFile, renameDevice]
+  );
+
+  // Commands report data
+  const commandsReportData = useMemo(() => {
+    if (!activeFile) return [];
+    return generateCommandsReport(activeFile.devices);
+  }, [activeFile]);
+
+  // Conditions summary data
+  const conditionsSummaryData = useMemo(() => {
+    if (!activeFile) return [];
+    return generateConditionsSummary(activeFile.devices);
+  }, [activeFile]);
+
+  // Filter mappings based on search query and filters
+  const filteredMappings = useMemo(() => {
+    if (!selectedDevice || !activeFile) return { filtered: [], matchingIds: new Set<number>() };
+
+    const searchQuery = activeFile.searchQuery;
+    const filters = activeFile.filters;
+
+    // If no search or filters, return all mappings
+    if (!searchQuery && !hasActiveFilters) {
+      return {
+        filtered: [...selectedDevice.mappings],
+        matchingIds: new Set(selectedDevice.mappings.map((m) => m.id)),
+      };
+    }
+
+    return filterMappings(selectedDevice.mappings, searchQuery, filters);
+  }, [selectedDevice, activeFile, hasActiveFilters]);
+
+  // ========================================================================
+  // Menu Actions (Phase 18)
+  // ========================================================================
+
+  // Handle close file from menu
+  const handleCloseFile = useCallback(() => {
+    if (activeFile) {
+      handleCloseFileRequest(activeFile.id);
+    }
+  }, [activeFile, handleCloseFileRequest]);
+
+  // Handle select all from menu
+  const handleSelectAll = useCallback(() => {
+    if (activeFile && selectedDevice) {
+      const allIds = selectedDevice.mappings.map((m) => m.id);
+      selectMappings(activeFile.id, allIds);
+    }
+  }, [activeFile, selectedDevice, selectMappings]);
+
+  // Application menu actions
+  // AIDEV-NOTE: These handlers are called from the native application menu
+  // via IPC events from the main process
+  useMenuActions({
+    // File menu
+    onNew: handleNewFile,
+    onOpen: handleOpenFile,
+    onSave: handleSaveFile,
+    onSaveAs: handleSaveAsFile,
+    onClose: handleCloseFile,
+    onExportCsv: handleExportCsv,
+    onSettings: () => setShowSettingsDialog(true),
+
+    // Edit menu
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onCut: handleCut,
+    onCopy: handleCopy,
+    onPaste: handlePaste,
+    onDuplicate: handleDuplicate,
+    onDelete: handleDelete,
+    onSelectAll: handleSelectAll,
+
+    // View menu
+    onShowCommandsReport: handleShowCommandsReport,
+    onShowConditionsSummary: handleShowConditionsSummary,
+
+    // Help menu
+    onShortcuts: () => setShowShortcutsDialog(true),
+    onAbout: () => setShowAboutDialog(true),
+  });
+
+  // ========================================================================
+  // Render
+  // ========================================================================
+
+  return (
+    <div className="flex h-screen flex-col">
+      {/* Toolbar */}
+      <header className="flex items-center justify-between border-b border-border bg-card px-4 py-2">
+        <div className="flex items-center gap-4">
+          <h1 className="text-lg font-semibold">CMDR</h1>
+          <span className="text-sm text-muted-foreground">TSI Editor</span>
+
+          {/* File actions */}
+          <div className="ml-4 flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNewFile}
+              title={`New (${SHORTCUTS.new})`}
+            >
+              <FilePlus className="mr-2 h-4 w-4" />
+              New
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleOpenFile}
+              title={`Open (${SHORTCUTS.open})`}
+            >
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Open
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSaveFile}
+              disabled={!activeFile}
+              title={`Save (${SHORTCUTS.save})`}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSaveAsFile}
+              disabled={!activeFile}
+              title={`Save As (${SHORTCUTS.saveAs})`}
+            >
+              <SaveAll className="mr-2 h-4 w-4" />
+              Save As
+            </Button>
+          </div>
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-border" />
+
+          {/* Undo/Redo (Phase 14.5) */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUndo}
+              disabled={!historyInfo.canUndo}
+              title={`Undo${historyInfo.undoDescription ? ` "${historyInfo.undoDescription}"` : ''} (${SHORTCUTS.undo})`}
+            >
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRedo}
+              disabled={!historyInfo.canRedo}
+              title={`Redo${historyInfo.redoDescription ? ` "${historyInfo.redoDescription}"` : ''} (${SHORTCUTS.redo})`}
+            >
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-border" />
+
+          {/* Edit actions (Phase 14) */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopy}
+              disabled={!hasSelection}
+              title={`Copy (${SHORTCUTS.copy})`}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCut}
+              disabled={!hasSelection}
+              title={`Cut (${SHORTCUTS.cut})`}
+            >
+              <Scissors className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePaste}
+              disabled={!canPaste}
+              title={`Paste (${SHORTCUTS.paste})`}
+            >
+              <ClipboardPaste className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDuplicate}
+              disabled={!hasSelection}
+              title={`Duplicate (${SHORTCUTS.duplicate})`}
+            >
+              <ClipboardCopy className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              disabled={!hasSelection}
+              title={`Delete (${SHORTCUTS.delete})`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-border" />
+
+          {/* Export and Reports (Phase 16) */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExportCsv}
+              disabled={!activeFile}
+              title="Export to CSV"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShowCommandsReport}
+              disabled={!activeFile}
+              title="Commands Overview"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShowConditionsSummary}
+              disabled={!activeFile}
+              title="Conditions Summary"
+            >
+              <ListChecks className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* MIDI status indicator */}
+          <span
+            className={`mr-2 flex items-center gap-1.5 text-xs ${
+              midiEnabled ? 'text-green-500' : 'text-muted-foreground'
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                midiEnabled ? 'bg-green-500' : 'bg-muted-foreground'
+              }`}
+            />
+            MIDI {midiEnabled ? 'Ready' : 'Off'}
+          </span>
+
+          {/* Separator */}
+          <div className="h-6 w-px bg-border" />
+
+          {/* Help buttons (Phase 17) */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowShortcutsDialog(true)}
+            title="Keyboard Shortcuts"
+          >
+            <Keyboard className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSettingsDialog(true)}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAboutDialog(true)}
+            title="About CMDR"
+          >
+            <Info className="h-4 w-4" />
+          </Button>
+
+          {/* Theme toggle */}
+          <ThemeToggle />
+        </div>
+      </header>
+
+      {/* File Tabs */}
+      <FileTabs
+        files={openFiles}
+        activeFileId={activeFile?.id ?? null}
+        onSelectFile={setActiveFile}
+        onCloseFile={handleCloseFileRequest}
+      />
+
+      {/* Main Content */}
+      <main className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Device Tree */}
+        <aside className="w-64 overflow-auto border-r border-border bg-card p-4">
+          <h2 className="mb-4 text-sm font-medium">Devices</h2>
+          {activeFile ? (
+            <DeviceList
+              devices={activeFile.devices}
+              selectedIndex={activeFile.selectedDeviceIndex}
+              fileId={activeFile.id}
+              onRename={handleRenameDevice}
+              onDuplicate={handleDuplicateDevice}
+              onDelete={handleDeleteDevice}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">No file loaded</p>
+          )}
+        </aside>
+
+        {/* Center - Mapping List */}
+        <section className="flex flex-1 flex-col overflow-hidden">
+          {activeFile && selectedDevice ? (
+            <>
+              {/* Search and Filter Bar (Phase 15) */}
+              <div className="flex items-center gap-2 border-b border-border bg-muted/30 px-4 py-2">
+                <SearchInput
+                  ref={searchInputRef}
+                  value={activeFile.searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Search mappings..."
+                  showShortcut
+                  className="w-64"
+                />
+                <FilterPanel
+                  filters={activeFile.filters}
+                  onFiltersChange={handleFiltersChange}
+                  onClearFilters={handleClearFilters}
+                  hasActiveFilters={hasActiveFilters}
+                />
+                <div className="ml-auto text-sm text-muted-foreground">
+                  {hasActiveFilters || activeFile.searchQuery
+                    ? `${filteredMappings.filtered.length} of ${selectedDevice.mappingCount} mappings`
+                    : `${selectedDevice.mappingCount} mappings`}
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <MappingList
+                  mappings={filteredMappings.filtered}
+                  selectedIds={activeFile.selectedMappingIds}
+                  onSelectionChange={handleMappingSelectionChange}
+                  height={undefined} // Let it fill available space
+                  totalCount={selectedDevice.mappingCount}
+                  isFiltered={hasActiveFilters || !!activeFile.searchQuery}
+                  searchQuery={activeFile.searchQuery}
+                />
+              </div>
+            </>
+          ) : activeFile ? (
+            // File loaded but no device selected
+            <div className="flex h-full items-center justify-center">
+              <p className="text-muted-foreground">Select a device to view mappings</p>
+            </div>
+          ) : (
+            // No file loaded - show welcome screen
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center max-w-md">
+                <p className="text-muted-foreground mb-4">Open a TSI file to start editing</p>
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  <Button variant="outline" onClick={handleNewFile}>
+                    <FilePlus className="mr-2 h-4 w-4" />
+                    New File
+                  </Button>
+                  <Button variant="outline" onClick={handleOpenFile}>
+                    <FolderOpen className="mr-2 h-4 w-4" />
+                    Open File
+                  </Button>
+                </div>
+
+                {/* Recent Files */}
+                {recentFiles.length > 0 && (
+                  <div className="border-t border-border pt-4">
+                    <h3 className="text-sm font-medium mb-2 flex items-center justify-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Recent Files
+                    </h3>
+                    <ul className="space-y-1 text-left">
+                      {recentFiles.slice(0, 5).map((file) => (
+                        <li key={file.path}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRecentFile(file.path)}
+                            className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent rounded truncate"
+                            title={file.path}
+                          >
+                            {file.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Right Panel - Properties */}
+        <aside className="w-80 overflow-auto border-l border-border bg-card">
+          <div className="border-b border-border px-4 py-2">
+            <h2 className="text-sm font-medium">Properties</h2>
+          </div>
+          <MappingEditor mappings={selectedMappings} fileId={activeFile?.id ?? null} />
+        </aside>
+      </main>
+
+      {/* Status Bar */}
+      <footer className="flex items-center justify-between border-t border-border bg-card px-4 py-1">
+        <p className="text-xs text-muted-foreground">
+          {activeFile ? `${activeFile.displayName}${activeFile.isDirty ? ' •' : ''}` : 'Ready'}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {activeFile
+            ? `${deviceCount} device${deviceCount !== 1 ? 's' : ''}, ${mappingCount} mapping${mappingCount !== 1 ? 's' : ''}`
+            : ''}
+        </p>
+      </footer>
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <ConfirmDialog {...unsavedChangesDialog.dialogProps} />
+
+      {/* Delete Device Confirmation Dialog (Phase 19) */}
+      <ConfirmDialog {...deleteDeviceDialog.dialogProps} />
+
+      {/* Delete Mappings Confirmation Dialog (Phase 19) */}
+      <ConfirmDialog {...deleteMappingsDialog.dialogProps} />
+
+      {/* Export Dialog (Phase 16) */}
+      <ExportDialog {...exportDialog.dialogProps} />
+
+      {/* Commands Report (Phase 16) */}
+      <CommandsReport
+        open={showCommandsReport}
+        rows={commandsReportData}
+        onClose={() => setShowCommandsReport(false)}
+        onExportCsv={() => {
+          const csv = exportCommandsReportToCsv(commandsReportData);
+          ipcClient.saveCsvFile(csv, 'commands-report.csv');
+        }}
+      />
+
+      {/* Conditions Summary (Phase 16) */}
+      <ConditionsSummary
+        open={showConditionsSummary}
+        rows={conditionsSummaryData}
+        onClose={() => setShowConditionsSummary(false)}
+        onExportCsv={() => {
+          const csv = exportConditionsSummaryToCsv(conditionsSummaryData);
+          ipcClient.saveCsvFile(csv, 'conditions-summary.csv');
+        }}
+      />
+
+      {/* About Dialog (Phase 17) */}
+      <AboutDialog open={showAboutDialog} onClose={() => setShowAboutDialog(false)} />
+
+      {/* Settings Dialog (Phase 17) */}
+      <SettingsDialog open={showSettingsDialog} onClose={() => setShowSettingsDialog(false)} />
+
+      {/* Keyboard Shortcuts Dialog (Phase 17) */}
+      <KeyboardShortcutsDialog
+        open={showShortcutsDialog}
+        onClose={() => setShowShortcutsDialog(false)}
+      />
+
+      {/* Toast Container (Phase 19) */}
+      <ToastContainer />
+    </div>
+  );
 }
 
 // ============================================================================
@@ -974,9 +1054,9 @@ function AppLayout() {
  * Root App component with providers
  */
 export function App() {
-	return (
-		<ThemeProvider defaultTheme="dark">
-			<AppLayout />
-		</ThemeProvider>
-	);
+  return (
+    <ThemeProvider defaultTheme="dark">
+      <AppLayout />
+    </ThemeProvider>
+  );
 }

@@ -10,15 +10,26 @@
  * - channel: 0-15 (MIDI channels, 0-indexed)
  * - noteNumber: 0-127 (note or CC number)
  * - isCC: boolean
+ *
+ * AIDEV-NOTE: parseMidiNoteString is duplicated here intentionally to keep @cmdr/midi
+ * independent from @cmdr/core. Both implementations are identical in logic.
+ * If you update one, update the other in @cmdr/core/src/models/Mapping.ts.
  */
 
 import type { MidiMessageType } from './types.js';
 
 import { MidiMessage } from './MidiMessage.js';
 
+// AIDEV-NOTE: MIDI range constants - duplicated from @cmdr/core for independence
+const MIDI_CHANNEL_MIN = 0;
+const MIDI_CHANNEL_MAX = 15;
+const MIDI_NOTE_MIN = 0;
+const MIDI_NOTE_MAX = 127;
+
 /**
  * Represents a MIDI binding for a mapping
- * (Duplicated here to avoid circular dependency with @cmdr/core)
+ * AIDEV-NOTE: This is the local interface. For TSI file operations,
+ * use MidiBinding from @cmdr/core.
  */
 export interface MidiBindingData {
   /**
@@ -46,11 +57,7 @@ export interface MidiBindingData {
  * Create MIDI note string from components
  * Format: "CC.XX.YYY" or "Note.XX.YYY" where XX=channel (0-padded), YYY=note/cc number (0-padded)
  */
-export function createMidiNoteString(
-  isCC: boolean,
-  channel: number,
-  noteNumber: number
-): string {
+export function createMidiNoteString(isCC: boolean, channel: number, noteNumber: number): string {
   const type = isCC ? 'CC' : 'Note';
   const channelStr = channel.toString().padStart(2, '0');
   const noteStr = noteNumber.toString().padStart(3, '0');
@@ -136,8 +143,8 @@ export function parseMidiNoteString(noteString: string): MidiBindingData | null 
   const noteNumber = parseInt(noteStr, 10);
 
   if (Number.isNaN(channel) || Number.isNaN(noteNumber)) return null;
-  if (channel < 0 || channel > 15) return null;
-  if (noteNumber < 0 || noteNumber > 127) return null;
+  if (channel < MIDI_CHANNEL_MIN || channel > MIDI_CHANNEL_MAX) return null;
+  if (noteNumber < MIDI_NOTE_MIN || noteNumber > MIDI_NOTE_MAX) return null;
 
   return {
     note: noteString,

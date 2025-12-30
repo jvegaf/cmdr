@@ -16,134 +16,153 @@
  */
 
 // Binary utilities
-export { BinaryReader } from "./binary/BinaryReader.js";
-export { BinaryWriter } from "./binary/BinaryWriter.js";
+export { BinaryReader } from './binary/BinaryReader.js';
+export { BinaryWriter } from './binary/BinaryWriter.js';
 
 // Commands
-export * from "./commands/index.js";
+export * from './commands/index.js';
 
 // Conditions
-export * from "./conditions/index.js";
+export * from './conditions/index.js';
 
 // Controls
-export * from "./controls/index.js";
+export * from './controls/index.js';
 // Enums
-export * from "./enums/index.js";
+export * from './enums/index.js';
 export {
-	createDefaultDevice,
-	createDeviceFrame,
-	DEVICE_FRAME_ID,
-	type DeviceData,
-	parseDevice,
-	parseDeviceFromFrame,
-	writeDevice,
-} from "./format/Device.js";
+  createDefaultDevice,
+  createDeviceFrame,
+  DEVICE_FRAME_ID,
+  type DeviceData,
+  parseDevice,
+  parseDeviceFromFrame,
+  writeDevice,
+} from './format/Device.js';
 export {
-	createDefaultDeviceData,
-	createDeviceDataFrame,
-	DEFAULT_PORT,
-	DEVICE_DATA_FRAME_ID,
-	type DeviceDataData,
-	type DevicePortsData,
-	type DeviceTargetInfoData,
-	type DvstData,
-	EncoderMode,
-	MidiControlType,
-	type MidiDefinitionData,
-	type MidiDefinitionsContainerData,
-	parseDeviceData,
-	parseDeviceDataFromFrame,
-	type VersionInfoData,
-	writeDeviceData,
-} from "./format/DeviceData.js";
+  createDefaultDeviceData,
+  createDeviceDataFrame,
+  DEFAULT_PORT,
+  DEVICE_DATA_FRAME_ID,
+  type DeviceDataData,
+  type DevicePortsData,
+  type DeviceTargetInfoData,
+  type DvstData,
+  EncoderMode,
+  MidiControlType,
+  type MidiDefinitionData,
+  type MidiDefinitionsContainerData,
+  parseDeviceData,
+  parseDeviceDataFromFrame,
+  type VersionInfoData,
+  writeDeviceData,
+} from './format/DeviceData.js';
 export {
-	createDeviceMappingsContainerFrame,
-	createEmptyDeviceMappingsContainer,
-	DEVICE_MAPPINGS_CONTAINER_FRAME_ID,
-	DEVICES_LIST_FRAME_ID,
-	type DeviceMappingsContainerData,
-	DIOI_FRAME_ID,
-	type DioiData,
-	parseDeviceMappingsContainer,
-	parseDeviceMappingsContainerFromBase64,
-	parseDeviceMappingsContainerFromFrame,
-	serializeDeviceMappingsContainerToBase64,
-	writeDeviceMappingsContainer,
-} from "./format/DeviceMappingsContainer.js";
+  createDeviceMappingsContainerFrame,
+  createEmptyDeviceMappingsContainer,
+  DEVICE_MAPPINGS_CONTAINER_FRAME_ID,
+  DEVICES_LIST_FRAME_ID,
+  type DeviceMappingsContainerData,
+  DIOI_FRAME_ID,
+  type DioiData,
+  parseDeviceMappingsContainer,
+  parseDeviceMappingsContainerFromBase64,
+  parseDeviceMappingsContainerFromFrame,
+  serializeDeviceMappingsContainerToBase64,
+  writeDeviceMappingsContainer,
+} from './format/DeviceMappingsContainer.js';
 // Format structures
-export { Frame, type FrameHeader } from "./format/Frame.js";
+export { Frame, type FrameHeader } from './format/Frame.js';
 export {
-	createDefaultMapping,
-	createMappingFrame,
-	MAPPING_FRAME_ID,
-	type MappingData,
-	parseMapping,
-	parseMappingFromFrame,
-	writeMapping,
-} from "./format/Mapping.js";
+  createDefaultMapping,
+  createMappingFrame,
+  MAPPING_FRAME_ID,
+  type MappingData,
+  parseMapping,
+  parseMappingFromFrame,
+  writeMapping,
+} from './format/Mapping.js';
 export {
-	createDefaultMappingSettings,
-	createMappingSettingsFrame,
-	MAPPING_SETTINGS_FRAME_ID,
-	type MappingSettingsData,
-	parseMappingSettings,
-	parseMappingSettingsFromFrame,
-	writeMappingSettings,
-} from "./format/MappingSettings.js";
+  createDefaultMappingSettings,
+  createMappingSettingsFrame,
+  MAPPING_SETTINGS_FRAME_ID,
+  type MappingSettingsData,
+  parseMappingSettings,
+  parseMappingSettingsFromFrame,
+  writeMappingSettings,
+} from './format/MappingSettings.js';
 export {
-	createEmptyMappingsContainer,
-	createMappingsContainerFrame,
-	MAPPINGS_CONTAINER_FRAME_ID,
-	MAPPINGS_LIST_FRAME_ID,
-	type MappingsContainerData,
-	MIDI_NOTE_BINDING_LIST_FRAME_ID,
-	parseMappingsContainer,
-	parseMappingsContainerFromFrame,
-	writeMappingsContainer,
-} from "./format/MappingsContainer.js";
+  createEmptyMappingsContainer,
+  createMappingsContainerFrame,
+  MAPPINGS_CONTAINER_FRAME_ID,
+  MAPPINGS_LIST_FRAME_ID,
+  type MappingsContainerData,
+  MIDI_NOTE_BINDING_LIST_FRAME_ID,
+  parseMappingsContainer,
+  parseMappingsContainerFromFrame,
+  writeMappingsContainer,
+} from './format/MappingsContainer.js';
 export {
-	createDefaultMidiNoteBinding,
-	createMidiNoteBindingFrame,
-	MIDI_NOTE_BINDING_FRAME_ID,
-	type MidiNoteBindingData,
-	parseMidiNoteBinding,
-	parseMidiNoteBindingFromFrame,
-	writeMidiNoteBinding,
-} from "./format/MidiNoteBinding.js";
+  createDefaultMidiNoteBinding,
+  createMidiNoteBindingFrame,
+  MIDI_NOTE_BINDING_FRAME_ID,
+  type MidiNoteBindingData,
+  parseMidiNoteBinding,
+  parseMidiNoteBindingFromFrame,
+  writeMidiNoteBinding,
+} from './format/MidiNoteBinding.js';
 // FX Settings
-export * from "./fx/index.js";
+export * from './fx/index.js';
 // High-level models
 export {
-	createEmptyTsiFile,
-	createMidiNoteString,
-	DEVICE_TYPE_GENERIC_KEYBOARD,
-	DEVICE_TYPE_GENERIC_MIDI,
-	Device,
-	getAllDevices,
-	getControlTypeName,
-	getDeviceTargetName,
-	getDeviceTypeName,
-	getInteractionModeName,
-	getTargetDeckName,
-	getTotalMappingCount,
-	isGenericMidiDevice,
-	Mapping,
-	type MappingCondition,
-	type MidiBinding,
-	PROPRIETARY_DEVICE_TYPES,
-	parseMidiNoteString,
-	parseTsiFile,
-	serializeTsiFile,
-	TsiFile,
-	type TsiFileData,
-} from "./models/index.js";
+  createEmptyTsiFile,
+  createMidiNoteString,
+  DEVICE_TYPE_GENERIC_KEYBOARD,
+  DEVICE_TYPE_GENERIC_MIDI,
+  Device,
+  getAllDevices,
+  getControlTypeName,
+  getDeviceTargetName,
+  getDeviceTypeName,
+  getInteractionModeName,
+  getTargetDeckName,
+  getTotalMappingCount,
+  isGenericMidiDevice,
+  Mapping,
+  type MappingCondition,
+  type MidiBinding,
+  PROPRIETARY_DEVICE_TYPES,
+  parseMidiNoteString,
+  parseTsiFile,
+  serializeTsiFile,
+  TsiFile,
+  type TsiFileData,
+} from './models/index.js';
 // Utils
-export { FourCC } from "./utils/FourCC.js";
+export { FourCC } from './utils/FourCC.js';
+export {
+  deepCopyMappingData,
+  deepCopyMappingDataArray,
+  deepCopyMappingSettings,
+  type DeepCopyMappingOptions,
+} from './utils/deep-copy.js';
+export {
+  CURRENT_FRAME_VERSION,
+  DEFAULT_HISTORY_SIZE,
+  FRAME_VERSION_SENTINEL,
+  INT32_MAX,
+  LEGACY_FRAME_VERSION,
+  MAX_BINDING_ID,
+  MIDI_CHANNEL_MAX,
+  MIDI_CHANNEL_MIN,
+  MIDI_NOTE_MAX,
+  MIDI_NOTE_MIN,
+  NO_MIDI_BINDING_ID,
+} from './utils/constants.js';
 // XML parsing
 export {
-	buildTsiXml,
-	parseTsiXml,
-	readTsiFile,
-	type TsiXmlData,
-	type TsiXmlEntry,
-} from "./xml/TsiXmlParser.js";
+  buildTsiXml,
+  parseTsiXml,
+  readTsiFile,
+  type TsiXmlData,
+  type TsiXmlEntry,
+} from './xml/TsiXmlParser.js';

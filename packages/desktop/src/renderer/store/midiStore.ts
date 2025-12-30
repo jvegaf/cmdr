@@ -8,14 +8,12 @@
  * - Device enumeration (inputs/outputs)
  * - MIDI Learn mode for capturing controller input
  * - Last received message for display
+ *
+ * Settings integration:
+ * - learnTimeout: Read from appStore.settings.midi.learnTimeout
  */
 
-import type {
-  MidiBindingData,
-  MidiDevice,
-  MidiLearnOptions,
-  MidiPort,
-} from '@cmdr/midi';
+import type { MidiBindingData, MidiDevice, MidiLearnOptions, MidiPort } from '@cmdr/midi';
 import {
   BINDABLE_MESSAGE_TYPES,
   MidiManager,
@@ -23,6 +21,8 @@ import {
   midiMessageToBinding,
 } from '@cmdr/midi';
 import { create } from 'zustand';
+
+import { getMidiSettings } from './appStore';
 
 // ============================================================================
 // Types
@@ -176,11 +176,16 @@ export const useMidiStore = create<MidiState>((set, get) => ({
     });
 
     try {
+      // AIDEV-NOTE: Get timeout from settings (in seconds), convert to milliseconds
+      // If explicit timeout is provided in options, it will override the default
+      const midiSettings = getMidiSettings();
+      const defaultTimeoutMs = midiSettings.learnTimeout * 1000;
+
       // Default to bindable message types only
       const learnOptions: MidiLearnOptions = {
         messageTypes: BINDABLE_MESSAGE_TYPES,
-        timeout: 30000, // 30 seconds default
-        ...options,
+        timeout: defaultTimeoutMs,
+        ...options, // Allow explicit options to override defaults
       };
 
       const message = await midiManager.startMidiLearn(learnOptions);

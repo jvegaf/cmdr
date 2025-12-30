@@ -291,4 +291,68 @@ export class TsiFile {
   removeKeyboardDevice(index: number): void {
     this.data.keyboardDevices.splice(index, 1);
   }
+
+  /**
+   * Remove a device by combined index (from devices getter)
+   * AIDEV-NOTE: The devices getter returns [...controllerDevices, ...keyboardDevices]
+   * so we need to calculate which array to modify
+   */
+  removeDevice(combinedIndex: number): boolean {
+    const controllerCount = this.data.controllerDevices.length;
+    if (combinedIndex < 0) return false;
+
+    if (combinedIndex < controllerCount) {
+      this.data.controllerDevices.splice(combinedIndex, 1);
+      return true;
+    }
+
+    const keyboardIndex = combinedIndex - controllerCount;
+    if (keyboardIndex < this.data.keyboardDevices.length) {
+      this.data.keyboardDevices.splice(keyboardIndex, 1);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Duplicate a device by combined index
+   * Returns the new device index, or -1 if failed
+   */
+  duplicateDevice(combinedIndex: number): number {
+    const controllerCount = this.data.controllerDevices.length;
+    if (combinedIndex < 0) return -1;
+
+    if (combinedIndex < controllerCount) {
+      const original = this.data.controllerDevices[combinedIndex];
+      if (!original) return -1;
+      // Deep copy the device data
+      const copy = JSON.parse(JSON.stringify(original)) as DeviceData;
+      // Insert after the original
+      this.data.controllerDevices.splice(combinedIndex + 1, 0, copy);
+      return combinedIndex + 1;
+    }
+
+    const keyboardIndex = combinedIndex - controllerCount;
+    if (keyboardIndex < this.data.keyboardDevices.length) {
+      const original = this.data.keyboardDevices[keyboardIndex];
+      if (!original) return -1;
+      // Deep copy the device data
+      const copy = JSON.parse(JSON.stringify(original)) as DeviceData;
+      // Insert after the original
+      this.data.keyboardDevices.splice(keyboardIndex + 1, 0, copy);
+      return combinedIndex + 1;
+    }
+
+    return -1;
+  }
+
+  /**
+   * Get device data by combined index
+   */
+  getDevice(combinedIndex: number): DeviceData | null {
+    const devices = this.devices;
+    if (combinedIndex < 0 || combinedIndex >= devices.length) return null;
+    return devices[combinedIndex] ?? null;
+  }
 }
